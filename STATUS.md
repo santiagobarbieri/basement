@@ -4,8 +4,31 @@ Updated: 2026-10-12 (Buenos Aires).
 
 ## Current phase
 
-Phase 0 approved. Phase 1 complete; awaiting user approval of checkpoint 1.
-Phase 2 has not started. No BASEMENT application exists yet.
+Phases 0 and 1 approved by Santi. Phase 2 technical audit complete; awaiting
+Santi's trial of both engines and approval of the v1 scope (checkpoint 2).
+Phase 3 has not started. No BASEMENT shell exists yet.
+
+## Phase 2 results
+
+- Written docs/audit/endo.md and docs/audit/prism.md, with screenshots, test projects and JSON evidence in docs/audit/evidence.
+- ENDO ran in an isolated Chrome profile. Painting, undo/redo, JSON project roundtrip, PNG/JPEG encoding and IndexedDB recovery passed. The roundtrip PNG stayed byte-identical; all 26 brush renderers produced pixels without uncaught exceptions in the tested scenario.
+- ENDO has 16 visible library brushes plus Fusion, nine preserved legacy renderers, four shared graphic effects, and Canvas 2D material shading. No separate 3D mode found. Existing shortcuts and actual rail inventory documented.
+- PhotoCraft native release and CLI built successfully in 254.40 seconds. App binary 59,935,872 bytes; CLI 39,028,784 bytes.
+- Native PhotoCraft ran on Apple M2 Pro / Metal. 33 primary and 11 additional operations passed, exercising painting, layers, masks, selections, transformations, crop, adjustments, filters, basic text, groups and file I/O.
+- PSD and native .pcraft test projects retained layers/masks/type/adjustments. PNG exports before and after both roundtrips were byte-identical. No external Photoshop validation was performed.
+- Verified CLI info and 884 runtime engine commands, authenticated JSON control channel, MCP initialize/tools-list (25 tools), and the 18 proposed PRISM tool selectors.
+- Rust wasm32 target installed. PhotoCraft web target passed cargo check in 294.32 seconds; browser/WASM artifact, WebView behavior and disk integration remain Phase 3 work.
+- Added executable scripts/run-endo.command and scripts/run-prism.command. Ran both launchers: ENDO opens in the browser, PhotoCraft opens the test PSD natively using an isolated config folder.
+- Both engine submodule worktrees remain unchanged. No other Studio was audited or built.
+
+## Phase 2 limits and issues
+
+- Upstream PhotoCraft remains alpha; complex PSD compatibility, typography and performance need further validation. Our small self-roundtrip does not prove Photoshop compatibility.
+- External block crate emits a future-Rust compatibility warning; build succeeded.
+- The initial audit harness used an incorrect export return shape and Levels parameters; corrected against the source/registry, then the final scenarios passed.
+- Browser/native interfaces shown are the original engines; BASEMENT's supplied design has not yet been implemented.
+- Automated tests do not cover every effect/tool, large projects, tablet hardware or native save-dialog interaction.
+- Existing ENDO autosave is one pathname-keyed browser workspace, not .artboard disk storage.
 
 ## Phase 1 results
 
@@ -43,11 +66,12 @@ Phase 2 has not started. No BASEMENT application exists yet.
 
 ## Pending / limitations
 
-- No BASEMENT application or running Studio screenshots yet.
+- BASEMENT home, shared chrome and .artboard lifecycle are not yet implemented. Engine screenshots and runnable previews are available.
 - Exact wordmark, fonts, and SVG icons still needed for visual implementation.
 - Do not audit or build QUILL, REEL, FOLIO, LUX, or MIRAGE.
 
 ## Next
 
-1. Await approval of checkpoint 1 under AGENTS.md section 3.2.
-2. After approval: Phase 2 audits for ENDO and PRISM, compile/run engines, document capabilities and integration risks.
+1. Santi opens both audit previews and reports what feels missing; confirm the proposed v1 scope in docs/audit/endo.md and docs/audit/prism.md.
+2. Await checkpoint 2 approval under AGENTS.md sections 3.2 and 10.
+3. After approval, Phase 3: architecture spike with Tauri/WASM, real file I/O, WebGPU/fallback behavior and comparison of native UI versus HTML panels. Document the recommendation before committing to an architecture.

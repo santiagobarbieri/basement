@@ -1,0 +1,145 @@
+{
+  "drawn": 1,
+  "undone": 0,
+  "redone": 1,
+  "roundtrip": {
+    "layers": 1,
+    "brush": "metal",
+    "points": 16
+  },
+  "pngRoundtripIdentical": true,
+  "indexedDBRestoredLayers": 1,
+  "brushSmoke": [
+    {
+      "id": "metal",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "chrome",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "neon",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "ink",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "halftone",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "pixel",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "spray",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "callig",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "bolt",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "fur",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "aurora",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "glitch",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "pencil",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "ribbon",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "dots",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "outline",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "stamp",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "cross",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "lime",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "paint",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "crayon",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "sand",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "cement",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "emboss",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "foam",
+      "ok": true,
+      "visible": true
+    },
+    {
+      "id": "fusion",
+      "ok": true,
+      "visible": true
+    }
+  ],
+  "errors": []
+}

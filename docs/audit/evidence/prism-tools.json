@@ -1,0 +1,92 @@
+[
+  {
+    "tool": "Move",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "RectMarquee",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Lasso",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "MagicWand",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Crop",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Eyedropper",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "SpotHealing",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Brush",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "CloneStamp",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Eraser",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "PaintBucket",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Blur",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Dodge",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Pen",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Type",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Rectangle",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Hand",
+    "ok": true,
+    "error": null
+  },
+  {
+    "tool": "Zoom",
+    "ok": true,
+    "error": null
+  }
+]

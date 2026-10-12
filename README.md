@@ -23,5 +23,10 @@ ENDO retains its full history as a submodule at studios/endo. PhotoCraft lives a
 vendor/photocraft, with BASEMENT integration work on endo-integration. Its main
 branch remains aligned with upstream. Neither engine is modified during setup.
 
-No BASEMENT application exists yet. Builds and launch instructions will be added
-after the engine audits and architecture checkpoint.
+## Engine audit previews
+
+Double-click `scripts/run-endo.command` for the original ENDO editor or
+`scripts/run-prism.command` for native PhotoCraft with the layered audit PSD.
+These are engine previews; the BASEMENT shell and supplied visual design have not
+been implemented yet. See `docs/audit/endo.md` and `docs/audit/prism.md` for evidence
+and known limitations.
