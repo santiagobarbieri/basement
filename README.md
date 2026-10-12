@@ -16,7 +16,7 @@ GitHub credentials stay in the macOS keychain, outside this repository.
 ## Source checkouts
 
 ```sh
-git submodule update --init --recursive
+zsh scripts/setup-sources.sh
 ```
 
 ENDO retains its full history as a submodule at studios/endo. PhotoCraft lives at

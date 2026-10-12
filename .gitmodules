@@ -1,0 +1,7 @@
+[submodule "studios/endo"]
+	path = studios/endo
+	url = https://github.com/santiagobarbieri/endo_testing.git
+[submodule "vendor/photocraft"]
+	path = vendor/photocraft
+	url = https://github.com/santiagobarbieri/photocraft.git
+	branch = endo-integration
