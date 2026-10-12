@@ -1,0 +1,21 @@
+{
+  "bundleIdentifier": "com.basement.desktop",
+  "documentTypes": [
+    {
+      "CFBundleTypeName": "BASEMENT Artboard",
+      "CFBundleTypeRole": "Editor",
+      "CFBundleTypeExtensions": [
+        "artboard"
+      ],
+      "CFBundleTypeIsPackage": true,
+      "LSItemContentTypes": [
+        "com.basement.artboard"
+      ],
+      "LSHandlerRank": "Owner"
+    }
+  ],
+  "appBytes": 29093481,
+  "storageTests": 4,
+  "nativeChecks": "phase4-native-checks.json",
+  "visualChecks": "phase4-ui-checks.json"
+}

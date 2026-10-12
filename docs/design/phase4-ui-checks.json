@@ -1,0 +1,17 @@
+{
+  "count": "3",
+  "filtered": 2,
+  "zoomEnlarged": true,
+  "errors": [],
+  "fontFaces": [
+    {
+      "family": "Albert Sans",
+      "status": "loaded"
+    },
+    {
+      "family": "BasementSerif",
+      "status": "loaded"
+    }
+  ],
+  "provenance": "Chrome renders original shell frontend with read-only bridge to native QA artboards; native UI creation/reopening verified separately."
+}

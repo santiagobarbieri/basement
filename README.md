@@ -4,6 +4,13 @@ Personal macOS design suite. Initial scope: ENDO (painting) and PRISM (image edi
 
 Read AGENTS.md for the project plan and STATUS.md for the current checkpoint.
 
+## Open BASEMENT
+
+Double-click `scripts/run-basement.command`. To rebuild, double-click
+`scripts/build-basement.command`. The Phase 4 app includes the reference home,
+real .artboard folders at ~/Basement, preferences and a common Studio shell.
+Painting/image-editing engines are integrated in the following phases.
+
 ## Environment
 
 ```sh

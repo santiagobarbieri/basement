@@ -4,9 +4,35 @@ Updated: 2026-10-12 (Buenos Aires).
 
 ## Current phase
 
-Phases 0, 1 and 2 approved by Santi. Phase 3 architecture spike implemented;
-awaiting Santi's review and checkpoint 3 architecture approval. Phase 4 has not
-started. The shell exists only as an experimental preview.
+Phases 0–3 approved by Santi. Phase 4 shell/home and artboard lifecycle implemented;
+awaiting user feedback and checkpoint 4 approval. Engine integration phases 5 and
+6 have not started. The normal BASEMENT app is now available.
+
+## Phase 4 results
+
+- Built shell/app as a standalone macOS Tauri shell; bundle identifier com.basement.desktop. Build/run scripts: scripts/build-basement.command and scripts/run-basement.command.
+- Home reproduces Main Page's two columns, SVG wordmark, title/type hierarchy, exact tagline, seven Studio pills, eight filters, current Buenos Aires date/time, real filesystem list/count, hover/focus, empty state and scroll. No search, Recent section or visible settings button.
+- Santi confirmed SVG logo, Cooper BT titles and Albert Sans body text. Found his wordmark and Albert Sans assets, copied SVG geometry with reference-gray fill, bundled Albert Sans with OFL, and used locally installed Cooper BT Medium Italic. No Druk/trial font was reused or embedded.
+- Palette sampled as raw RGB from the provided PNG, recorded in docs/design/reference-palette.json; Studio accents are shared variables between home and chrome.
+- Proposed and showed the one-step artboard form before implementing its UI. Santi approved name, preset/custom dimensions, resolution, and transparent/custom-color background.
+- Only ENDO and PRISM can create artboards; five pending Studios remain visible with disabled Soon pills.
+- Real flat .artboard folders contain versioned project.json, main.png, thumbnail.png and assets/. Default root ~/Basement; no document database. PNG stores chosen print resolution and background.
+- Disk metadata/image writes are atomic, names avoid collisions, rename updates the real folder while retaining identity, invalid folders are reported, and home refreshes from disk every three seconds while preserving row focus.
+- Common chrome for both Studios: editable artboard name, mode, neutral panels, accent line, canvas fit/zoom, background layer, metadata, status/path and native PNG export. Painting/editing controls are explicitly disabled pending their engine phases.
+- Preferences via Cmd-comma/native menu: folder chooser and persisted light/dark appearance. Native text-edit menu and app icon derived from Santi's favicon added.
+- Packaged and registered .artboard as a macOS document package. A plain open of a test package dispatched Finder-open to BASEMENT and selected PRISM correctly.
+- Four meaningful storage tests passed. Native QA created/reopened both Studios and submitted the actual approved form. Browser QA against those real native files verified filters, zoom and loaded fonts with no exceptions.
+- Captures and reports are in docs/design. Screenshots render the original frontend in Chrome with a read-only bridge to real QA artboards; they are not claimed as native window captures.
+- Launched the normal app with ~/Basement. Santi has already created one PRISM and one ENDO artboard there (Untitled and Untitled (2)); neither was modified by our QA. Temporary QA records are kept separate.
+- Santi's edited audit PSD remains an unstaged user change. ENDO and PhotoCraft source worktrees remain unchanged.
+
+## Phase 4 scope and limitations
+
+- The shell/document lifecycle is real; editing engines are not connected yet. Phase 5 connects ENDO, Phase 6 connects PRISM. Current work PNGs are initially empty backgrounds; rail/brush/property placeholders do not claim engine functionality.
+- Native PNG export is implemented; JPEG/project formats are engine-integration work.
+- Finder opening is constrained to the configured artboard root; change root in Preferences when moving a collection.
+- Cooper BT is a local licensed font, not redistributed. Exact title rendering on another Mac requires that font installed.
+- New-artboard dimensions are bounded to 128–8192 px and 24 megapixels; 1–1200 ppi.
 
 ## Phase 3 results
 
@@ -25,7 +51,7 @@ started. The shell exists only as an experimental preview.
 
 ## Phase 3 findings / limits
 
-- Recommendation pending approval: Tauri + ENDO web + PRISM WASM, provisional egui UI, then progressive HTML panels starting with Layers.
+- Recommendation approved: Tauri + ENDO web + PRISM WASM, provisional egui UI, then progressive HTML panels starting with Layers.
 - Original web loader only exports initialization; native TCP/MCP do not exist inside WASM. Shared-session HTML panels need a typed command/state bridge, not a disconnected CLI session.
 - DOM/keyboard/file-picker interception is a spike adapter. The first real save passed, but repeated automated shortcuts are unreliable; reports distinguish readiness from exportConfirmed. A stable host bridge is required before production artboard claims.
 - macOS window screencapture failed; evidence is the editor's own WebGPU canvas, not a composed or fabricated screenshot. GL canvas capture did not prove visual behavior.
@@ -91,12 +117,11 @@ started. The shell exists only as an experimental preview.
 
 ## Pending / limitations
 
-- BASEMENT home, final shared chrome and .artboard lifecycle are not implemented. Engine and Tauri previews are available.
-- Exact wordmark, fonts, and SVG icons still needed for visual implementation.
+- Engine editing/undo is pending, while home, common shell and artboard lifecycle are implemented.
 - Do not audit or build QUILL, REEL, FOLIO, LUX, or MIRAGE.
 
 ## Next
 
-1. Santi reviews the architecture preview and docs/decisions/0001-architecture.md, then approves or adjusts checkpoint 3.
-2. After approval, Phase 4: shell/home and artboards, following the supplied references.
-3. Exact wordmark and font files/names are still needed for visual fidelity; the existing Druk asset requires identification/license confirmation before reuse.
+1. Santi reviews the home/common chrome, creates and reopens an artboard from All, then approves or adjusts checkpoint 4.
+2. After approval: Phase 5 ENDO engine integration, preserving its existing tools, brushes/effects, project storage and exports.
+3. PRISM remains scheduled for Phase 6; no other Studio is authorized.

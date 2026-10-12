@@ -1,7 +1,8 @@
 # 0001 — Arquitectura de BASEMENT
 
-Fecha: 12 Oct. 2026. Estado: **propuesta; pendiente de aprobación de Santi**.
-Checkpoint 2 aprobado. Esta prueba no comienza la Fase 4 ni cambia los motores.
+Fecha: 12 Oct. 2026. Estado: **aprobada por Santi, checkpoint 3**.
+Santi aprobó Tauri + WASM y la identidad continua entre Studios antes de autorizar
+Fase 4. Las mediciones y límites de esta prueba quedan como evidencia histórica.
 
 ## Recomendación
 
@@ -127,8 +128,7 @@ Elegir **Abrir ejemplo PSD**, revisar capas y probar editar/guardar. El script
 
 **Decisión solicitada:** aprobar Tauri + WASM, con la UI egui provisoria y reemplazo
 gradual hacia el diseño de Santi, condicionado a construir el puente explícito.
-Con ese OK seguimos a Fase 4 (home, chrome y artboards). La arquitectura todavía
-no está aprobada y no se comenzó esa implementación.
+Santi aprobó esta propuesta posteriormente y autorizó la Fase 4 (home, chrome y artboards).
 
 Evidencia: [WebGPU](evidence/webgpu-runtime.json), [cadencia](evidence/webgpu-cadence.json),
 [guardado](evidence/webgpu-file-export.json), [comparación de píxeles](evidence/file-roundtrip.json),
