@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleDocumentTypes</key><array><dict>
+<key>CFBundleTypeName</key><string>BASEMENT Artboard</string>
+<key>CFBundleTypeRole</key><string>Editor</string>
+<key>CFBundleTypeExtensions</key><array><string>artboard</string></array>
+<key>CFBundleTypeIsPackage</key><true/>
+<key>LSItemContentTypes</key><array><string>com.basement.artboard</string></array>
+<key>LSHandlerRank</key><string>Owner</string>
+</dict></array>
+<key>UTExportedTypeDeclarations</key><array><dict>
+<key>UTTypeIdentifier</key><string>com.basement.artboard</string>
+<key>UTTypeDescription</key><string>BASEMENT Artboard</string>
+<key>UTTypeConformsTo</key><array><string>public.directory</string><string>com.apple.package</string></array>
+<key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>artboard</string></array></dict>
+</dict></array>
+</dict></plist>
