@@ -1,0 +1,8 @@
+{
+  "wasmBytes": 25063798,
+  "appBytes": 39530585,
+  "buildWallSeconds": 253.69,
+  "tauriVersion": "2.12.3",
+  "wkwebviewMacOS": "26.6.2",
+  "nativeAppBytes": 59935872
+}

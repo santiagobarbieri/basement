@@ -1,0 +1,7 @@
+{
+  "sourcePsdSha256": "5e664f583d1946559a958a2ea1c65f97383f440380116dd243b88f473dc49e20",
+  "nativePngSha256": "867e5799e35d13ccde593b81a92ef708474c8bb40510ca8c58b7ea0b2501ecb6",
+  "wasmRoundtripPngSha256": "867e5799e35d13ccde593b81a92ef708474c8bb40510ca8c58b7ea0b2501ecb6",
+  "matchingPixels": true,
+  "note": "Compared against the current input PSD; earlier audit PNG is a different revision after user edits."
+}

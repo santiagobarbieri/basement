@@ -30,3 +30,10 @@ Double-click `scripts/run-endo.command` for the original ENDO editor or
 These are engine previews; the BASEMENT shell and supplied visual design have not
 been implemented yet. See `docs/audit/endo.md` and `docs/audit/prism.md` for evidence
 and known limitations.
+
+## Architecture preview
+
+Double-click `scripts/run-spike.command` to open the Phase 3 Tauri/WASM preview.
+`scripts/build-spike.command` rebuilds the web engine and macOS app.
+The decision and measurements are in `docs/decisions/0001-architecture.md`.
+This is a local prototype; production architecture awaits checkpoint 3 approval.

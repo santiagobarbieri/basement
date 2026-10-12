@@ -1,0 +1,35 @@
+{
+  "nativePsdRoundtripMs": [
+    106.81154099999999,
+    63.97391599999999,
+    63.98541599999999
+  ],
+  "separateSessionLayerProbeMs": 124.66025000000003,
+  "commandResult": "{\"command\":\"layer.new.layer\",\"result\":{\"layer\":7}}\n",
+  "layers": [
+    [
+      "HTML panel probe",
+      "Pixel"
+    ],
+    [
+      "Audit group",
+      "Group"
+    ],
+    [
+      "Hue/Saturation 1",
+      "Adjustment"
+    ],
+    [
+      "Paint",
+      "Pixel"
+    ],
+    [
+      "BASEMENT",
+      "Type"
+    ],
+    [
+      "Background",
+      "Pixel"
+    ]
+  ]
+}

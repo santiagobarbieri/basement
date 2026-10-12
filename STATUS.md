@@ -4,9 +4,34 @@ Updated: 2026-10-12 (Buenos Aires).
 
 ## Current phase
 
-Phases 0 and 1 approved by Santi. Phase 2 technical audit complete; awaiting
-Santi's trial of both engines and approval of the v1 scope (checkpoint 2).
-Phase 3 has not started. No BASEMENT shell exists yet.
+Phases 0, 1 and 2 approved by Santi. Phase 3 architecture spike implemented;
+awaiting Santi's review and checkpoint 3 architecture approval. Phase 4 has not
+started. The shell exists only as an experimental preview.
+
+## Phase 3 results
+
+- Built original PhotoCraft web app with local Trunk 0.21.14, including upstream HEIF feature. Build wall time 253.69 s; generated WASM 25,063,798 bytes (23.90 MiB).
+- Created shell/spike: Tauri 2.12.3, plain HTML/JS, native file commands and original WASM editor in a frame. Both source submodules remain unmodified.
+- Local tauri://localhost context is secure and returned a WebGPU adapter on this Mac. Engine logs confirm BrowserWebGpu, with real UI captured from its canvas.
+- Initial WebGPU readiness: 1.134 s. Brief 180-sample rAF cadence: mean 16.67 ms, p95 18 ms; not an engine FPS or large-document benchmark.
+- Native shell read a PSD, delivered bytes to the original editor, intercepted an encoded download and saved 92,971 bytes to disk. One measured save took 116 ms. Reopening that export produced the same PNG as native rendering of the same input revision.
+- Preserved Santi's edits to docs/audit/evidence/prism-test.psd; it remains an unstaged user change. Tests use a frozen copy in .audit-runtime/spike/input.psd and never overwrite the source.
+- Forced WebGL2 initialized backend Gl and imported the test PSD. Full visual/save behavior remains partial: canvas capture was black and repeated automated shortcuts did not confirm export. Do not claim a fully supported fallback.
+- Native comparison: CLI PSD reencode 64–107 ms over three runs; a separate-session layer command plus inspection took about 125 ms. These are not apples-to-apples UI benchmarks.
+- Added executable scripts/build-spike.command and scripts/run-spike.command, tested the full build script and packaged a debug macOS .app (~37.70 MiB).
+- Tested the packaged app and opened the normal preview using the launcher. The bundle can find this checkout without a path environment variable, but must remain inside the project.
+- Added docs/decisions/0001-architecture.md in Spanish with context, evidence, options, preliminary implementation estimates and proposed Tauri/WASM architecture.
+- LICENSE, NOTICE and asset attribution copied into the preview resources. No permanent Studio UI, home, artboard storage or vendor patches were implemented.
+
+## Phase 3 findings / limits
+
+- Recommendation pending approval: Tauri + ENDO web + PRISM WASM, provisional egui UI, then progressive HTML panels starting with Layers.
+- Original web loader only exports initialization; native TCP/MCP do not exist inside WASM. Shared-session HTML panels need a typed command/state bridge, not a disconnected CLI session.
+- DOM/keyboard/file-picker interception is a spike adapter. The first real save passed, but repeated automated shortcuts are unreliable; reports distinguish readiness from exportConfirmed. A stable host bridge is required before production artboard claims.
+- macOS window screencapture failed; evidence is the editor's own WebGPU canvas, not a composed or fabricated screenshot. GL canvas capture did not prove visual behavior.
+- Native picker is wired but still needs Santi's manual trial. Preview file limit is 32 MiB; output is .audit-runtime/spike/exports. CSP is disabled for the local prototype.
+- No broad memory/tablet/large-document/GPU-loss tests. No architecture approval inferred from completing the spike.
+- rustfmt is not installed in the minimal Rust toolchain; no formatter check ran. Rust compilation, packaging, JS syntax and shell syntax checks passed.
 
 ## Phase 2 results
 
@@ -66,12 +91,12 @@ Phase 3 has not started. No BASEMENT shell exists yet.
 
 ## Pending / limitations
 
-- BASEMENT home, shared chrome and .artboard lifecycle are not yet implemented. Engine screenshots and runnable previews are available.
+- BASEMENT home, final shared chrome and .artboard lifecycle are not implemented. Engine and Tauri previews are available.
 - Exact wordmark, fonts, and SVG icons still needed for visual implementation.
 - Do not audit or build QUILL, REEL, FOLIO, LUX, or MIRAGE.
 
 ## Next
 
-1. Santi opens both audit previews and reports what feels missing; confirm the proposed v1 scope in docs/audit/endo.md and docs/audit/prism.md.
-2. Await checkpoint 2 approval under AGENTS.md sections 3.2 and 10.
-3. After approval, Phase 3: architecture spike with Tauri/WASM, real file I/O, WebGPU/fallback behavior and comparison of native UI versus HTML panels. Document the recommendation before committing to an architecture.
+1. Santi reviews the architecture preview and docs/decisions/0001-architecture.md, then approves or adjusts checkpoint 3.
+2. After approval, Phase 4: shell/home and artboards, following the supplied references.
+3. Exact wordmark and font files/names are still needed for visual fidelity; the existing Druk asset requires identification/license confirmation before reuse.

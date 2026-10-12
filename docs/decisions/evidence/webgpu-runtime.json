@@ -1,0 +1,62 @@
+{
+  "canvas": {
+    "bottom": 763,
+    "height": 763,
+    "left": 0,
+    "right": 1512,
+    "top": 0,
+    "width": 1512,
+    "x": 0,
+    "y": 0
+  },
+  "elapsedMs": 1074,
+  "errors": [],
+  "loading": null,
+  "logs": [
+    {
+      "level": "info",
+      "text": "[photocraft_web::web] photocraft-web/src/web.rs:95: photocraft-web: wgpu backend BrowserWebGpu"
+    },
+    {
+      "level": "info",
+      "text": "[photocraft_web::web] photocraft-web/src/web.rs:95: photocraft-web: wgpu backend BrowserWebGpu"
+    },
+    {
+      "level": "info",
+      "text": "[photocraft_ui_egui::gpu_canvas] ui-egui/src/gpu_canvas.rs:146: gpu canvas: target Bgra8Unorm, max texture 16384, tile 8192, 16F canvas Budget"
+    },
+    {
+      "level": "info",
+      "text": "[photocraft_ui_egui::gpu_canvas] ui-egui/src/gpu_canvas.rs:146: gpu canvas: target Bgra8Unorm, max texture 16384, tile 8192, 16F canvas Budget"
+    },
+    {
+      "level": "info",
+      "text": "[eframe::web::web_runner] eframe-0.36.2/src/web/web_runner.rs:94: event handlers installed."
+    },
+    {
+      "level": "info",
+      "text": "[eframe::web::web_runner] eframe-0.36.2/src/web/web_runner.rs:94: event handlers installed."
+    },
+    {
+      "level": "warn",
+      "text": "[eframe::web::app_runner] eframe-0.36.2/src/web/app_runner.rs:337: Unhandled egui viewport command: SetTheme(SystemDefault) - not implemented in web backend"
+    },
+    {
+      "level": "warn",
+      "text": "[eframe::web::app_runner] eframe-0.36.2/src/web/app_runner.rs:337: Unhandled egui viewport command: SetTheme(SystemDefault) - not implemented in web backend"
+    },
+    {
+      "level": "warn",
+      "text": "[eframe::web::app_runner] eframe-0.36.2/src/web/app_runner.rs:337: Unhandled egui viewport command: Title(\"PhotoCraft\") - not implemented in web backend"
+    },
+    {
+      "level": "warn",
+      "text": "[eframe::web::app_runner] eframe-0.36.2/src/web/app_runner.rs:337: Unhandled egui viewport command: Title(\"PhotoCraft\") - not implemented in web backend"
+    }
+  ],
+  "ready": true,
+  "secureContext": true,
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "webgl2": true,
+  "webgpu": true
+}
