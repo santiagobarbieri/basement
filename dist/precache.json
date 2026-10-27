@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "hash": "d1939177b9989f1892adf52381ca3344aa6a8e8d2f7beaba567fe956783df862",
-  "bytes": 68940448,
+  "hash": "96e43c3e905655ac26e6e227d86087561e3d3514af0456b9c62581c6a61c2d3d",
+  "bytes": 68948807,
   "files": [
     {
       "url": "/app-updates.js",
@@ -240,8 +240,8 @@
     },
     {
       "url": "/endo-ui.js",
-      "hash": "e64dc567373878061cacc0fe934268c194d37edcf547ca663c090b1abb5f062c",
-      "bytes": 2200
+      "hash": "2cd162b1dddb81e174824fcd3fa3e9e424ac728cfa4accbcf84aa2aaa56fd88c",
+      "bytes": 7855
     },
     {
       "url": "/engine.js",
@@ -595,8 +595,8 @@
     },
     {
       "url": "/index.html",
-      "hash": "4c720d573b4671897bd3026102bd7ee03120e5f9b6fbf4404c882ae0b49edb6b",
-      "bytes": 12147
+      "hash": "8564101eca50167dc10a6e9a2e2fd9c14058713ea91840271bebf994380c6f3f",
+      "bytes": 14611
     },
     {
       "url": "/kiln/app.js",
@@ -705,8 +705,8 @@
     },
     {
       "url": "/layout.js",
-      "hash": "9be79cef26fa66f23dd39e09f323c19a7040836cae040032b893d16749df203f",
-      "bytes": 341
+      "hash": "3b60d3463e0659eca2c34de4dee28b369adf2b806866321a4e17e275d679e924",
+      "bytes": 154
     },
     {
       "url": "/marble/app.js",
@@ -790,8 +790,8 @@
     },
     {
       "url": "/style.css",
-      "hash": "31a581d793eff1f3feb9f6cb027b478e22cfcb80f90837030e66512371e0ea6c",
-      "bytes": 23628
+      "hash": "206dfbf59bc4adbc7e8dd236682b58b12a4063a11ca7b4a6963fd496a79b1484",
+      "bytes": 24055
     },
     {
       "url": "/symmetry.js",

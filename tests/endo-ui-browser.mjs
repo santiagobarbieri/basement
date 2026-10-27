@@ -36,13 +36,15 @@ try{
  const wait=async expression=>{for(let i=0;i<300;i++){try{if(await run(expression))return;}catch{}await delay(100);}throw Error('Timed out: '+expression+'; '+await run("JSON.stringify({url:location.href,status:document.querySelector('#local-status')?.textContent,feedback:document.querySelector('#export-feedback')?.textContent,dialogs:[...document.querySelectorAll('dialog[open]')].map(d=>d.textContent.slice(0,150))})"));};
  const click=async selector=>{const p=await run(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);await pointer('mousePressed',p,1);await pointer('mouseReleased',p,0);};
  const pointer=(type,point,buttons)=>page.send('Input.dispatchMouseEvent',{type,...point,button:'left',buttons,clickCount:1});
- const key=async key=>{const codes={Escape:27,Enter:13,Tab:9,ArrowDown:40};const code=key===' '?'Space':key;await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key,code,windowsVirtualKeyCode:codes[key]||0});await page.send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:codes[key]||0});};
+ const key=async key=>{const codes={Escape:27,Enter:13,Tab:9,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Home:36,End:35};const code=key===' '?'Space':key;await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key,code,windowsVirtualKeyCode:codes[key]||0});await page.send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:codes[key]||0});};
+ const inspect=async name=>{await click(`[data-inspector-tab=${name}]`);await wait(`document.querySelector('[data-inspector-tab=${name}]').getAttribute('aria-selected')==='true'&&!document.querySelector('[data-inspector-panel=${name}]').hidden`);};
  const capture=async name=>{await run('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await delay(500);const {data}=await page.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile('/private/tmp/basement-endo-'+name+'.png',Buffer.from(data,'base64'));};
  await wait('window.basementSessionReady');
  await run(`(async()=>{localStorage.setItem('basement-theme','dark');const store=await import('/project-store.js');const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('Endo UI Test',{create:true});await store.connectProjectFolder(root);await store.putProject({id:'endo-ui-test',name:'Material studies',studio:'endo',state:await(await import('/hub/studios.js')).createInitial('endo'),createdAt:Date.now(),updatedAt:Date.now()});})()`);
  await page.send('Page.navigate',{url:origin+'/?project=endo-ui-test'});
  await wait("document.querySelector('#local-status')?.textContent.startsWith('Saved in ')&&!!window.basementStudioSession");
  const stroke=async(brush,index)=>{
+  await inspect('brush');
   await click('[data-mode=draw]');await key('Escape');
   const selector=`[data-brush=${brush}]`;await run(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);await click(selector);
   const r=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height};})()");
@@ -61,6 +63,39 @@ try{
  }else{
   assert.deepEqual(await run('window.basementStudioSession.capture().state.strokes.map(s=>s.settings.brush)'),['cromo','relief','sand']);
   console.log('PASS Endo draws three editable material strokes with real pointer input');
+
+
+  // One inspector holds all properties; the left rail remains a quick tool switcher.
+  const inspectorState=()=>run("(()=>({selected:[...document.querySelectorAll('[data-inspector-tab][aria-selected=true]')].map(t=>t.dataset.inspectorTab),visible:[...document.querySelectorAll('[data-inspector-panel]')].filter(p=>!p.hidden&&getComputedStyle(p).display!=='none').map(p=>p.dataset.inspectorPanel),tabStops:[...document.querySelectorAll('[data-inspector-tab]')].filter(t=>t.tabIndex===0).map(t=>t.dataset.inspectorTab)}))()");
+  for(const name of ['color','symmetry','areas','brush']){
+   await inspect(name);assert.deepEqual(await inspectorState(),{selected:[name],visible:[name],tabStops:[name]});
+  }
+  await key('ArrowRight');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'color');
+  assert.deepEqual((await inspectorState()).selected,['color']);
+  await key('End');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'areas');
+  await key('Home');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'brush');
+  console.log('PASS one inspector panel is visible at a time; tabs work with pointer, arrows, Home and End');
+
+  const beforeArea=await run('window.basementStudioSession.capture().state.strokes.length');
+  assert.equal(await run("!!document.querySelector('#draw-frame').closest('.tool-rail')"),true,'Export-area tool belongs to the quick rail');
+  await click('#draw-frame');await wait("document.querySelector('#canvas-viewport').dataset.mode==='frame'");
+  const box=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x+r.width*.15,y:r.y+r.height*.15,w:r.width*.6,h:r.height*.6};})()");
+  await pointer('mousePressed',{x:box.x,y:box.y},1);await pointer('mouseMoved',{x:box.x+box.w,y:box.y+box.h},1);await pointer('mouseReleased',{x:box.x+box.w,y:box.y+box.h},0);
+  await wait('window.basementStudioSession.capture().state.frames.length===1');
+  await inspect('areas');assert.equal(await run("document.querySelector('#frame-list .frame-row input').value"),'Area 1');
+  await click('#frame-list .frame-row button[aria-label^="Remove "]');await wait('window.basementStudioSession.capture().state.frames.length===0');
+  assert.equal(await run('window.basementStudioSession.capture().state.strokes.length'),beforeArea);
+  await inspect('brush');
+  console.log('PASS quick export-area tool draws and removes an area without altering the strokes');
+
+  for(const [shortcut,mode] of [['v','select'],['h','pan'],['f','frame'],['b','draw']]){
+   await key(shortcut);assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),mode,'Quick tool shortcut '+shortcut);
+   assert.equal(await run('document.activeElement.id'),'artboard','Tool shortcuts return focus to the canvas');
+  }
+  await run("document.querySelector('#project-title').focus()");await key('v');
+  assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),'draw','Tool shortcuts leave text inputs alone');
+  await inspect('brush');
+  console.log('PASS B / V / H / F shortcuts switch quick tools and do not intercept Artboard naming');
 
   // A material setting belongs to the selected stroke; history preserves the others.
   await click('[data-mode=select]');await pointer('mousePressed',paths[0][15],1);await pointer('mouseReleased',paths[0][15],0);
@@ -83,7 +118,15 @@ try{
   await pointer('mousePressed',panPoint,1);await pointer('mouseMoved',{x:panPoint.x+45,y:panPoint.y+20},1);await pointer('mouseReleased',{x:panPoint.x+45,y:panPoint.y+20},0);
   assert.equal(await content(),beforeNavigation,'Pan and zoom never alter drawing content');
   await click('#zoom-fit');await click('[data-mode=draw]');
-  console.log('PASS Draw / Select / Pan and zoom controls keep viewport changes separate from content');
+  assert.equal(await run('document.activeElement.id'),'artboard','Clicking Draw returns focus to the canvas before any pointer gesture');
+  const beforeSpace=await run('window.basementStudioSession.capture().state.view.x');
+  await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key:' ',code:'Space',windowsVirtualKeyCode:32});
+  await pointer('mousePressed',panPoint,1);await pointer('mouseMoved',{x:panPoint.x+30,y:panPoint.y+15},1);await pointer('mouseReleased',{x:panPoint.x+30,y:panPoint.y+15},0);
+  await page.send('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
+  assert.equal(await run('window.basementStudioSession.capture().state.view.x'),beforeSpace+30,'Space + drag pans immediately after clicking Draw');
+  assert.equal(await content(),beforeNavigation,'Space + drag never creates a paint stroke');
+  await click('#zoom-fit');await click('[data-mode=draw]');
+  console.log('PASS Draw / Select / Pan, Space + drag and zoom keep viewport changes separate from content');
 
   // Manual Save must commit the library copy, independently of exporting a download.
   await run("document.querySelector('#project-title').value='Endo material studies',document.querySelector('#project-title').dispatchEvent(new Event('input',{bubbles:true}))");
@@ -112,6 +155,10 @@ try{
   await wait("!document.querySelector('#export-menu').hidden");
   assert.equal(await run("document.activeElement.id"),'export-ment');await key('ArrowDown');assert.equal(await run("document.activeElement.id"),'export-png');
   await key('Escape');assert.equal(await run("document.querySelector('#export-menu').hidden&&document.activeElement.id==='export'"),true);
+  await click('#export');await click('#show-export-areas');
+  await wait("document.querySelector('#export-menu').hidden&&document.querySelector('[data-inspector-tab=areas]').getAttribute('aria-selected')==='true'");
+  assert.equal(await run("!document.querySelector('[data-inspector-panel=areas]').hidden"),true,'Manage export areas navigates to the inspector');
+  await inspect('brush');
   await click('#export');await click('#export-ment');await wait('window.testDownloads.length===1');
   const ment=await run("fetch(window.testDownloads[0].url).then(r=>r.json())");
   assert.equal(ment.format,'basement.ment');assert.equal(ment.artboard.id,'endo-ui-test');assert.equal(ment.artboard.name,'Endo material studies');
@@ -124,10 +171,11 @@ try{
   console.log('PASS keyboard-accessible Export creates a portable .ment and a valid painted, transparent PNG');
 
   const auditLayout=async label=>{
-   const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
+   const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,rail:rect(document.querySelector('.tool-rail')),canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
    assert.ok(layout.bodyWidth<=layout.width+1&&layout.htmlWidth<=layout.width+1,label+' has no horizontal page overflow: '+JSON.stringify(layout));
    assert.ok(layout.bodyHeight<=layout.height+1&&layout.htmlHeight<=layout.height+1,label+' has no page scrolling');
-   assert.ok(layout.canvas.width>=340&&layout.canvas.height>=400,label+' retains a useful drawing area');
+   assert.ok(layout.rail.width<=64,label+' keeps a narrow quick tool rail');
+   assert.ok(layout.canvas.width>=layout.width-480&&layout.canvas.height>=400,label+' gives the drawing canvas the recovered sidebar space: '+JSON.stringify(layout.canvas));
    assert.ok(layout.preview.bottom<=layout.height+1&&layout.preview.height>=70,label+' keeps the live brush preview visible');
    for(const a of layout.aside)assert.ok(a.x>=-1&&a.right<=layout.width+1&&a.bottom<=layout.height+1,label+' side panel fits the viewport');
    for(const b of layout.visibleHeaderButtons)assert.ok(b.x>=-1&&b.right<=layout.width+1&&b.y>=-1&&b.bottom<=layout.header.bottom+1,label+' toolbar button fits: '+b.name);
@@ -150,11 +198,14 @@ try{
   assert.equal(await run("localStorage.getItem('basement-theme')"),'dark');
   await page.send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await delay(300);
   await auditLayout('Compact dark');await capture('compact');
-  await run("document.querySelector('#scene-controls .control:last-child input[type=number]').scrollIntoView({block:'nearest'})");
+  for(const [name,selector] of [['color','#color-square'],['symmetry','[data-tool=grid]'],['areas','#frame-from-selection'],['brush','[data-brush=cromo]']]){
+   await inspect(name);assert.equal(await run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.x>=0&&r.right<=innerWidth&&r.y>=0&&r.bottom<=innerHeight;})()`),true,'Compact inspector exposes '+name+' controls without page scrolling');
+  }
+  await run("document.querySelector('.scene-card').open=true,document.querySelector('#scene-controls .control:last-child input[type=number]').scrollIntoView({block:'nearest'})");
   assert.equal(await run("(()=>{const f=document.querySelector('#scene-controls .control:last-child input[type=number]'),r=f.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===f&&r.bottom<=document.querySelector('.brush-preview-card').getBoundingClientRect().top;})()"),true,'Last global control remains reachable above the fixed preview');
   await run("document.querySelector('.brush-settings-scroll').scrollTop=0");
   assert.equal(await content(),savedContent,'Responsive layout preserves the drawing');
-  console.log('PASS hub theme persists in Endo; fixed layouts fit 1512×982 and 1280×720 with the preview visible');
+  console.log('PASS shared themes and compact editor fit 1512×982 and 1280×720; all inspector tabs and the fixed preview remain usable');
 
   await run("document.querySelector('#project-title').value='Saved on Home',document.querySelector('#project-title').dispatchEvent(new Event('input',{bubbles:true}))");
   await home();assert.equal(await run("(await import('/project-store.js')).getProject('endo-ui-test').then(p=>p.name)"),'Saved on Home');
