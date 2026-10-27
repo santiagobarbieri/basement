@@ -10,8 +10,8 @@ function syncPresets() {
   presetBrush = brush; presetButtons = []; presetPanel.replaceChildren();
   for (const [id, preset] of Object.entries(presetsForBrush(brush))) {
     const button = document.createElement('button');
-    button.type = 'button'; button.dataset.preset = id; button.title = 'Aplicar ' + preset.name;
-    button.setAttribute('aria-label', preset.name);
+    button.type = 'button'; button.dataset.preset = id; button.title = 'Apply ' + preset.name;
+    button.setAttribute('aria-label', button.title);
     button.innerHTML = '<span class="preset-swatch" aria-hidden="true"></span>';
     button.querySelector('.preset-swatch').style.background = `linear-gradient(135deg, ${preset.colors.shadow}, ${preset.colors.primary} 35%, ${preset.colors.contrast} 55%, ${preset.colors.primary} 75%, ${preset.colors.shadow})`;
     button.addEventListener('click', () => document.dispatchEvent(new CustomEvent('endo-color-preset', { detail: id })));
@@ -27,7 +27,7 @@ function view() {
   cursor.style.left = `clamp(5px, ${hsv.s * 100}%, calc(100% - 5px))`; cursor.style.top = `clamp(5px, ${(1-hsv.v) * 100}%, calc(100% - 5px))`;
   hue.value = hsv.h;
   square.setAttribute('aria-valuenow', Math.round(hsv.s * 100));
-  square.setAttribute('aria-valuetext', `Saturación ${Math.round(hsv.s*100)}%, brillo ${Math.round(hsv.v*100)}%`);
+  square.setAttribute('aria-valuetext', `Saturation ${Math.round(hsv.s*100)}%, brightness ${Math.round(hsv.v*100)}%`);
   const rgb = hexToRgb(source().value);
   channels.forEach((input, i) => { if (document.activeElement !== input) input.value = rgb[i]; input.disabled = source().disabled; });
   hue.disabled = source().disabled;

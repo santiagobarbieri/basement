@@ -5,7 +5,7 @@ let drawing=false,pan=null,space=false,previousWidth=0,previousHeight=0;
 const minimum=.1,maximum=16;
 export function toWorld(clientX,clientY){const r=viewport.getBoundingClientRect();return {x:(clientX-r.left-camera.x)/camera.scale,y:(clientY-r.top-camera.y)/camera.scale}}
 function render(){
- fit.textContent=Math.round(camera.scale*100)+' %';fit.setAttribute('aria-label','Escala '+Math.round(camera.scale*100)+' por ciento. Centrar vista');
+ fit.textContent=Math.round(camera.scale*100)+' %';fit.setAttribute('aria-label','Zoom '+Math.round(camera.scale*100)+' percent. Fit canvas');
  minus.disabled=drawing||!!pan||camera.scale<=minimum;plus.disabled=drawing||!!pan||camera.scale>=maximum;fit.disabled=drawing||!!pan;
  viewport.classList.remove('pan-locked');document.dispatchEvent(new Event('endo-camera-change'));
 }

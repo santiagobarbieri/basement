@@ -1,5 +1,5 @@
 // Regenerate with python3 scripts/build-precache.py after changing dist/.
-const BUILD = 'bb69cf4c60454d291ef572ce081292246ea3be7416eb00bb22a0a2a491ecc771';
+const BUILD = 'd1939177b9989f1892adf52381ca3344aa6a8e8d2f7beaba567fe956783df862';
 const digest=async buffer=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',buffer))].map(b=>b.toString(16).padStart(2,'0')).join('');
 // Validate a complete release without storing an offline copy. Open documents
 // keep their loaded code until an explicit update from the hub.

@@ -7,18 +7,19 @@ import { symmetrySurface, toolTransforms, transformPoint } from './symmetry.js';
 import { ChromeSurface, StrokeBuilder, rebuild } from './engine.js';
 
 const strokeControls = [
-  ['width', 'Base Width', 2, 100, 28, 1, 'px', 'Ancho del trazo seleccionado o del próximo trazo.'],
-  ['variation', 'Width Variation', 0, 100, 30, 1, '%', 'Variación de ancho del trazo.'],
-  ['speed', 'Speed Influence', 0, 100, 35, 1, '%', 'Influencia de la velocidad original en el ancho.'],
+  ['width', 'Width', 2, 100, 28, 1, 'px', 'Base width of the selected strokes, or of new strokes when nothing is selected.'],
+  ['variation', 'Width variation', 0, 100, 30, 1, '%', 'How much the width changes along a stroke.'],
+  ['speed', 'Speed response', 0, 100, 35, 1, '%', 'How much the original drawing speed affects the width.'],
 ];
 const sceneControls = [
-  ['shine', 'Shine', 0, 100, 75, 1, '%', 'Brillo de todos los trazos.'],
-  ['relief', 'Relief', .1, 2, .8, .05, '', 'Altura del relieve de todos los trazos.'],
-  ['smooth', 'Smoothing', 0, 90, 45, 1, '%', 'Suavizado del movimiento de todos los trazos.'],
-  ['grain', 'Texture', 0, 100, 12, 1, '%', 'Textura de todos los trazos.'],
-  ['merge', 'Merge Radius', 1, 12, 2, 1, 'px', 'Suavizado de las uniones, compartido por todos los trazos.'],
-  ['light', 'Light Angle', 0, 360, 225, 1, '°', 'Iluminación compartida por todo el artboard.'],
+  ['shine', 'Shine', 0, 100, 75, 1, '%', 'Surface shine across every stroke in the Artboard.'],
+  ['relief', 'Relief depth', .1, 2, .8, .05, '', 'Surface depth across every stroke in the Artboard.'],
+  ['smooth', 'Smoothing', 0, 90, 45, 1, '%', 'Smooth the paths of every stroke in the Artboard.'],
+  ['grain', 'Texture', 0, 100, 12, 1, '%', 'Surface texture across every stroke in the Artboard.'],
+  ['merge', 'Edge blending', 1, 12, 2, 1, 'px', 'Soften the joins between strokes across the Artboard.'],
+  ['light', 'Light angle', 0, 360, 225, 1, '°', 'Light direction for the entire Artboard.'],
 ];
+const brushNames = {cromo:'Chrome',relief:'Relief',sand:'Magnetic sand',crayon:'Crayon',cement:'Cement',dust:'Powder'};
 const geometryKeys = new Set(['width', 'variation', 'speed', 'relief', 'smooth', 'ridge', 'roughness', 'density', 'particleSize']);
 const defaults = { brush: 'cromo', density: 65, particleSize: 1.5, ridge: 55, roughness: 40, primary: '#8795a8', shadow: '#10141b', contrast: '#eff5ff' };
 const scene = {};
@@ -172,7 +173,7 @@ function syncControls() {
     if (key === 'ridge' || key === 'roughness') field.input.closest('.control').hidden = p.brush !== 'relief';
     if (key === 'density' || key === 'particleSize') field.input.closest('.control').hidden = !['sand', 'crayon', 'cement', 'dust'].includes(p.brush);
     field.refresh();
-    const mixed=!field.global && editableSettings().some(s=>s[key]!==p[key]);field.input.closest('.control').classList.toggle('mixed',mixed);field.number.placeholder=mixed?'—':'';field.number.title=mixed?'Valores distintos; escribir aplica a todos':'';if(mixed)field.number.value='';
+    const mixed=!field.global && editableSettings().some(s=>s[key]!==p[key]);field.input.closest('.control').classList.toggle('mixed',mixed);field.number.placeholder=mixed?'—':'';field.number.title=mixed?'Mixed values. Enter a value to apply it to all selected strokes.':'';if(mixed)field.number.value='';
     field.input.disabled = active !== null;
     field.number.disabled = active !== null;
   }
@@ -183,8 +184,11 @@ function syncControls() {
   for (const button of modeButtons) button.disabled = active !== null;
   syncTools();
   syncCommands();
-  const label=selection.size>1?`${selection.size} trazos seleccionados`:selected===null?'Próximo trazo':`Trazo ${strokes[selected].number}`;
-  document.querySelector('#stroke-scope').textContent=label;frameEditor?.refresh();
+  const label=selection.size>1?`${selection.size} strokes selected`:selected===null?'New stroke':`Stroke ${strokes[selected].number} selected`;
+  document.querySelector('#stroke-scope').textContent=label;
+  const scopeHelp=document.querySelector('#stroke-scope-help');
+  if(scopeHelp)scopeHelp.textContent=selected===null?'Brush and color changes apply to new strokes.':'Brush and color changes apply to the selection. Esc clears it.';
+  frameEditor?.refresh();
   refreshPreview();
   highlight();
   document.dispatchEvent(new Event('endo-settings'));
@@ -193,12 +197,13 @@ function syncControls() {
 function addControls(controls, target, global) {
   for (const [key, label, min, max, , step, unit, help] of controls) {
     const row = document.createElement('div');
-    row.className = 'control'; row.title = help;
-    row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}"><span class="numeric-value"><input type="number" min="${min}" max="${max}" step="${step}" aria-label="${label} valor"><span>${unit}</span></span>`;
+    row.className = 'control'; row.title = help; row.dataset.control = key;
+    row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" aria-label="${label}"><span class="numeric-value"><input type="number" min="${min}" max="${max}" step="${step}" aria-label="${label} value"><span>${unit}</span></span>`;
     const input = row.querySelector('input[type=range]'), number = row.querySelector('input[type=number]');
     const refresh = () => {
       const value = Number(input.value);
       input.style.setProperty('--fill', `${(value - min) / (max - min) * 100}%`);
+      input.setAttribute('aria-valuetext', `${Number(value.toFixed(2))}${unit}`);
       if (document.activeElement !== number) number.value = Number(value.toFixed(2));
     };
     const apply = element => {
@@ -225,10 +230,10 @@ function addControls(controls, target, global) {
 }
 addControls(strokeControls, '#controls', false);
 addControls([
-  ['ridge', 'Spine Ridge', 0, 100, 55, 1, '%', 'Cresta central del trazo Relief.'],
-  ['roughness', 'Roughness', 0, 100, 40, 1, '%', 'Irregularidad de la superficie Relief.'],
-  ['density', 'Density', 5, 100, 65, 1, '%', 'Densidad del material en este trazo.'],
-  ['particleSize', 'Grain Size', .4, 5, 1.5, .1, 'px', 'Tamaño del grano en este trazo.'],
+  ['ridge', 'Ridge', 0, 100, 55, 1, '%', 'Height of the central ridge on Relief strokes.'],
+  ['roughness', 'Roughness', 0, 100, 40, 1, '%', 'Surface irregularity on Relief strokes.'],
+  ['density', 'Density', 5, 100, 65, 1, '%', 'Amount of material in each stroke.'],
+  ['particleSize', 'Grain size', .4, 5, 1.5, .1, 'px', 'Size of the material particles in each stroke.'],
 ], '#controls', false);
 addControls(sceneControls, '#scene-controls', true);
 for (const button of document.querySelectorAll('.brush-switch [data-brush]')) button.addEventListener('click', () => {
@@ -314,8 +319,8 @@ function syncTools() {
   document.querySelector('#mirror-settings').hidden = tool.mode !== 'mirror';
   document.querySelector('#tile-settings').hidden = !['grid', 'mosaic'].includes(tool.mode);
   for (const input of document.querySelectorAll('#tool-settings input, #tool-settings select')) input.disabled = active !== null;
-  const mode = tool.mode === 'none' ? 'Trazo libre' : tool.mode[0].toUpperCase() + tool.mode.slice(1);
-  document.querySelector('.session').textContent = mode + (tool.mode === 'none' ? ' · ' + ({cromo:'Cromo',relief:'Relief',sand:'Arena magnética',crayon:'Crayones',cement:'Cemento',dust:'Polvo'}[currentSettings().brush] || 'Cromo') : ' Tool Active');
+  const mode = tool.mode === 'none' ? 'Freehand' : tool.mode[0].toUpperCase() + tool.mode.slice(1);
+  document.querySelector('.session').textContent = mode + ' · ' + (brushNames[currentSettings().brush] || 'Chrome');
   drawGuides();
   saver.update();
 }

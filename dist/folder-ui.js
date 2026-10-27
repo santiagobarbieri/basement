@@ -1,22 +1,27 @@
 import {storageStatus,subscribeStorage,chooseProjectFolder,reconnectProjectFolder,retryPendingSave,pendingProject,encodeProject,checkProjectChanged,acceptExternalVersion,putProject} from './project-store.js';
-// The hub owns its Settings view. Studios keep their current design.
+// The hub owns its Settings view. A Studio may provide a header slot for these controls.
 const stylesheet=document.createElement('link');stylesheet.rel='stylesheet';stylesheet.href='/folder-ui.css';document.head.append(stylesheet);
 const tools=document.createElement('div');tools.className='folder-studio-tools';
 const save=document.createElement('button');save.type='button';save.textContent='Save';save.title='Save Artboard (⌘/Ctrl S)';
 const opener=document.createElement('button');opener.type='button';opener.textContent='Folder';
-const feedback=document.createElement('span');feedback.setAttribute('role','status');tools.append(save,opener,feedback);document.body.append(tools);
+save.dataset.studioSave='';opener.dataset.studioFolder='';
+const feedback=document.createElement('span');feedback.className='folder-save-feedback';feedback.setAttribute('role','status');tools.append(save,opener,feedback);
+const toolsHost=document.querySelector('[data-studio-save-slot]');if(toolsHost)tools.classList.add('is-mounted');(toolsHost||document.body).append(tools);
 const dialog=document.createElement('dialog');dialog.id='folder-settings';dialog.className='folder-settings';dialog.setAttribute('aria-labelledby','folder-title');
 dialog.innerHTML=`<h2 id="folder-title">Your Artboards folder</h2><p data-description>Choose a folder on your computer. Artboards are saved there as portable .ment files.</p><dl><dt>Folder</dt><dd data-location>Not connected</dd></dl><label data-name-label hidden>Artboard name<input data-recovery-name maxlength="80" autocomplete="off"></label><div class="folder-actions"><button type="button" data-choose>Choose folder</button><button type="button" data-reconnect hidden>Reconnect and retry</button><button type="button" data-retry hidden>Retry save</button><button type="button" data-emergency hidden>Download emergency .ment</button></div><p data-result role="status"></p><p data-error role="alert"></p>`;
+let dismissHint;if(toolsHost){dialog.tabIndex=-1;dismissHint=document.createElement('p');dismissHint.className='folder-dismiss-hint';dismissHint.textContent='Press Esc or click outside to close.';dialog.append(dismissHint);}
 document.body.append(dialog);
 const $=s=>dialog.querySelector(s);let state={configured:false,ready:false,busy:false},acting=false,writeFailed=false;
-function open(){if(!dialog.open)dialog.showModal();}
+function open(){if(dismissHint)dismissHint.hidden=!state.ready||writeFailed||acting||state.busy;if(!dialog.open){dialog.showModal();if(toolsHost&&state.ready&&!writeFailed&&!acting)dialog.focus();}}
 function render(next){
  state=next;opener.textContent=state.ready?'Folder: '+state.name:'Reconnect folder';
+ opener.title=state.ready?'Manage your Artboards folder: '+state.name:'Reconnect your Artboards folder';
  $('[data-location]').textContent=state.name||'Not connected';
  $('[data-choose]').hidden=state.configured;$('[data-choose]').disabled=acting||state.busy||!state.supported;
  $('[data-reconnect]').hidden=!state.configured||state.ready&&!writeFailed;$('[data-reconnect]').disabled=acting||state.busy;
  $('[data-retry]').hidden=!writeFailed;$('[data-retry]').disabled=acting||state.busy;
  $('[data-emergency]').hidden=!writeFailed&&!(state.configured&&!state.ready&&window.basementStudioSession?.capture);
+ if(dismissHint)dismissHint.hidden=!state.ready||writeFailed||acting||state.busy;
  if(!state.supported)$('[data-error]').textContent='Open Basement in Google Chrome to save Artboards in a folder.';
  else if(state.error)$('[data-error]').textContent=state.error;
  if(!state.ready&&!state.busy&&state.configured)open();

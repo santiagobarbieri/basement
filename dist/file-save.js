@@ -23,17 +23,19 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
     mentButton.disabled=pngButton.disabled=button.disabled;
     try{const area=exportGeometry(getState());document.querySelector('#export-size').textContent=area.width+' × '+area.height+' px';}
     catch(error){pngButton.disabled=true;document.querySelector('#export-size').textContent=error.message;}
+    reflectLocalStatus();
     if (button.disabled) closeMenu(false);
-    if (saving) { status.textContent = 'Guardando…'; return; }
-    if (isBusy()) { status.textContent = baseline || downloaded ? 'Copia .ment desactualizada' : 'Copia .ment sin exportar'; return; }
+    if (saving) { status.textContent = 'Exporting .ment…'; return; }
+    if (isBusy()) { status.textContent = baseline || downloaded ? '.ment copy needs updating' : 'No .ment copy exported'; return; }
     const signature = signatureOf(getState());
-    status.textContent = baseline === signature ? 'Guardado en tu Mac'
-      : downloaded === signature ? 'Descarga .ment iniciada'
-      : baseline || downloaded ? 'Copia .ment desactualizada' : 'Copia .ment sin exportar';
+    status.textContent = baseline === signature ? '.ment copy saved'
+      : downloaded === signature ? '.ment download started'
+      : baseline || downloaded ? '.ment copy needs updating' : 'No .ment copy exported';
     if(ready&&!localWriting){clearTimeout(localTimer);localTimer=setTimeout(persistLocal,5000);}
   }
   function markChanged() {
-    if (!saving) status.textContent = baseline || downloaded ? 'Copia .ment desactualizada' : 'Copia .ment sin exportar';
+    if (!saving) status.textContent = baseline || downloaded ? '.ment copy needs updating' : 'No .ment copy exported';
+    if (ready && !localWriting && !localFailed) setLocalStatus('Unsaved changes', 'pending');
   }
   async function save() {
     if (saving || exporting || isBusy()) return;
@@ -47,7 +49,7 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
       if (typeof window.showSaveFilePicker === 'function') {
         const target = handle || await window.showSaveFilePicker({
           suggestedName: filename, excludeAcceptAllOption: true,
-          types: [{ description: 'Artboard BASEMENT (.ment)', accept: { 'application/json': ['.ment'] } }],
+          types: [{ description: 'Basement Artboard (.ment)', accept: { 'application/json': ['.ment'] } }],
         });
         const text = serializeMent(state, { id, name: state.projectName, preview });
         writable = await target.createWritable();
@@ -61,13 +63,13 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
         anchor.href = url; anchor.download = filename; document.body.append(anchor); anchor.click(); anchor.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);
         downloaded = signature;
-        status.title = 'El navegador inició la descarga. Comprobá el archivo en tus descargas.';
+        status.title = 'The download has started. Check your browser downloads for the .ment copy.';
       }
       saving = false; update();
     } catch (error) {
       if (writable) { try { await writable.abort(); } catch {} }
       saving = false; update();
-      if (error.name !== 'AbortError') { status.textContent = 'No se pudo guardar'; status.title = 'Probá Export nuevamente.'; }
+      if (error.name !== 'AbortError') { status.textContent = 'Could not export .ment'; status.title = error.message || 'Try Export again.'; }
     }
   }
   function closeMenu(focus = true) {
@@ -82,16 +84,16 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
   pngButton.addEventListener('click', async () => {
     if(saving||exporting||isBusy()||pngButton.disabled)return;
     closeMenu(); prepare(); const state = structuredClone(getState());
-    exporting = true; feedback.textContent = 'Generando PNG…'; update();
+    exporting = true; feedback.textContent = 'Creating PNG…'; update();
     try {
       const blob = await exportPng(state), url = URL.createObjectURL(blob);
       const anchor = document.createElement('a'); anchor.href = url;
-      const area=exportGeometry(state),suffix=area.name?' — '+area.name.replace(/[<>:"/\\|?*]/g,'-'):state.exportTarget==='selection'?' — selección':'';
+      const area=exportGeometry(state),suffix=area.name?' — '+area.name.replace(/[<>:"/\\|?*]/g,'-'):state.exportTarget==='selection'?' — selection':'';
       anchor.download=filename.replace(/\.ment$/i,'')+suffix+'.png';
       document.body.append(anchor); anchor.click(); anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      feedback.textContent = 'Descarga PNG iniciada';
-    } catch(error) { feedback.textContent=error.message||'No se pudo exportar PNG'; }
+      feedback.textContent = 'PNG download started';
+    } catch(error) { feedback.textContent=error.message||'Could not export PNG. Try again.'; }
     exporting = false; update();
   });
   document.addEventListener('click', e => { if (!e.target.closest('.file')) closeMenu(false); });
@@ -107,31 +109,45 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
   titleInput.addEventListener('input',()=>{handle=null;filename=safeFilename()+'.ment';document.title=title()+' · Endo';update();});
   titleInput.addEventListener('blur',()=>{if(!titleInput.value.trim())titleInput.value='Untitled';});
   document.title=title()+' · Endo';
-  const localStatus=document.createElement('small');localStatus.id='local-status';status.before(localStatus);
-  let ready=false,localWriting=false,localSignature=null,createdAt=Date.now(),localTimer;
+  const localStatus=document.createElement('small');localStatus.id='local-status';localStatus.setAttribute('role','status');localStatus.setAttribute('aria-live','polite');
+  const statusHost=document.querySelector('#endo-save-status');
+  if(statusHost)statusHost.append(localStatus);else status.before(localStatus);
+  let ready=false,localWriting=false,localFailed=false,localSignature=null,createdAt=Date.now(),localTimer;
+  function setLocalStatus(message,saveState){
+    localStatus.textContent=message;localStatus.dataset.saveState=saveState;
+    localStatus.title=saveState==='pending'?'Changes are saved to your Artboards folder after 5 seconds of inactivity.':message;
+    if(statusHost)statusHost.dataset.saveState=saveState;
+  }
+  function reflectLocalStatus(){
+    if(!ready||localFailed)return;
+    if(localWriting)setLocalStatus(projectSavingLabel(),'saving');
+    else if(signatureOf(getState())!==localSignature)setLocalStatus('Unsaved changes','pending');
+    else setLocalStatus(projectSavedLabel(),'saved');
+  }
+  setLocalStatus('Preparing Artboard…','loading');
   async function persistLocal(){
     if(!ready||localWriting||isBusy())return;
     const state=structuredClone(getState()),signature=signatureOf(state);
     if(signature===localSignature)return;
-    localWriting=true;localStatus.textContent=projectSavingLabel();
+    localWriting=true;localFailed=false;setLocalStatus(projectSavingLabel(),'saving');
     try{
       prepare();const frozen=structuredClone(getState());
       await putProject({id,name:frozen.projectName,studio,state:freezeState(studio,frozen),preview:getPreview(),createdAt,updatedAt:Date.now()});
-      localSignature=signatureOf(frozen);localStatus.textContent=projectSavedLabel();
+      localSignature=signatureOf(frozen);setLocalStatus(projectSavedLabel(),'saved');
       const url=new URL(location.href);url.searchParams.set('project',id);history.replaceState(null,'',url);
-    }catch(error){localStatus.textContent='Save failed: '+error.message;console.error(error)}
+    }catch(error){localFailed=true;setLocalStatus('Save failed: '+error.message,'error');console.error(error)}
     finally{localWriting=false;}
   }
   (async()=>{
     try{
       if(new URLSearchParams(location.search).has('project')){
-        localStatus.textContent='Abriendo proyecto…';const project=await getProject(id);
-        if(!project||project.studio!==studio)throw Error('Proyecto no disponible en la carpeta');
-        titleInput.value=project.name;filename=safeFilename()+'.ment';createdAt=project.createdAt;await loadState(resumeState(project));document.title=title()+' · '+studio;
-        localSignature=signatureOf(getState());localStatus.textContent=projectSavedLabel();
+        setLocalStatus('Opening Artboard…','loading');const project=await getProject(id);
+        if(!project||project.studio!==studio)throw Error('This Artboard is not available in your folder.');
+        titleInput.value=project.name;filename=safeFilename()+'.ment';createdAt=project.createdAt;await loadState(resumeState(project));document.title=title()+' · Endo';
+        localSignature=signatureOf(getState());setLocalStatus(projectSavedLabel(),'saved');
       }
       ready=true;persistLocal();
-    }catch(error){localStatus.textContent=error.message;button.disabled=true;titleInput.disabled=true;const editor=document.querySelector('main');if(editor)editor.inert=true;}
+    }catch(error){localFailed=true;setLocalStatus(error.message,'error');button.disabled=true;titleInput.disabled=true;const editor=document.querySelector('main');if(editor)editor.inert=true;}
   })();
   registerStudioSession({save:async()=>{if(!ready)throw Error(localStatus.textContent||'Artboard is not ready.');prepare();while(localWriting)await new Promise(r=>setTimeout(r,20));await persistLocal();if(signatureOf(getState())!==localSignature)throw Error(localStatus.textContent||'Finish the current action before saving.');},capture:()=>({id,name:title(),studio,state:freezeState(studio,getState()),preview:getPreview(),createdAt,updatedAt:Date.now()}),dirty:()=>ready&&signatureOf(getState())!==localSignature});
   // Save before leaving via Main Page; if storage fails, keep the work open.

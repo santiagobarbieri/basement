@@ -69,6 +69,7 @@ node tests/folder-workspace.test.mjs
 node tests/hub-utilities.test.mjs
 node tests/pwa-browser.mjs
 node tests/studio-browser.mjs
+node tests/endo-ui-browser.mjs
 ```
 
 Las pruebas de Chrome usan un perfil y una biblioteca OPFS temporales, con servidor aislado. Nunca acceden a la biblioteca real. La ejecución local de Chrome requiere permiso fuera del sandbox. El nombre histórico `pwa-browser.mjs` se conserva para la prueba del sitio online y sus actualizaciones.

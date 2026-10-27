@@ -6,6 +6,8 @@ Hub con siete Studios: Endo, Kiln, Tremor, Foundry, Contour, Marble y Distortion
 
 Estructura fija, scroll limitado a las colecciones de Artboards, cuatro cards por fila en escritorio, con ancho adaptable y separación de 16 px. Bordes suaves de gris neutro en ambos temas. Filtro por encima de la grilla, símbolo activo visible y filas de navegación estables sin separadores sobre las esquinas de la selección. Storage distingue bytes reales por Studio/papelera y cuota estimada del navegador.
 
+Endo recibió su primera pulida con la identidad del hub: cabecera integrada de guardado/exportación, temas compartidos, herramientas sobre el lienzo, controles agrupados por alcance y vista previa fija. Verificado en Chrome aislado: tres materiales, selección e historial, guardado en carpeta, exportación .ment/PNG transparente, ambos temas y escritorio compacto.
+
 Un .ment portable por Artboard en la carpeta elegida. Guardado automático a los cinco segundos, guardado manual, IDs estables, mudanzas verificadas, ZIP con resolución de conflictos y papelera con confirmación de eliminación/vencimiento. Errores de disco bloquean la edición con recuperación y copia de emergencia. Cambios externos permiten elegir la versión. Apertura confirmada sin aviso de salida; el trabajo realmente pendiente mantiene su protección.
 
 Sitio por URL, launcher de desarrollo en pestaña normal y una sola sesión activa. Sin instalación ni caché offline. Actualizaciones únicamente desde el hub y sin operaciones o ventanas pendientes.
