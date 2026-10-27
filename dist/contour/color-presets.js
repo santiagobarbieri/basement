@@ -1,0 +1,1 @@
+export const COLOR_PRESETS={default:{name:'Contour Pink',colors:{primary:'#ff6b81',contrast:'#201722',shadow:'#f3e8df'}},ink:{name:'Ink',colors:{primary:'#222222',contrast:'#ffffff',shadow:'#e5e5e5'}},blue:{name:'Electric Blue',colors:{primary:'#0055ff',contrast:'#baf43c',shadow:'#101825'}},orange:{name:'Tangerine',colors:{primary:'#ff7539',contrast:'#532552',shadow:'#f7d8b7'}}};

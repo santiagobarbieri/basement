@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {exportGeometry,exportState} from '../dist/document-bounds.js';
+import {serializeMent,documentSignature} from '../dist/ment-format.js';
+import {importMent} from '../dist/project-store.js';
+const settings={width:20,primary:'#8795a8',shadow:'#10141b',contrast:'#eff5ff'};
+const stroke=x=>({number:x,settings,tool:{mode:'none'},points:[{x,y:10,time:0,pressure:1}]});
+const state={infinite:true,scene:{},defaults:{},tool:{mode:'none'},nextNumber:3,strokes:[stroke(10),stroke(100000)],selection:[0],frames:[{id:'frame',name:'My work',x:-10,y:-20,width:100,height:80}]};
+assert.throws(()=>exportGeometry({...state,exportTarget:'all'}),/demasiado grande/);
+assert.equal(exportState({...state,exportTarget:'selection'}).strokes.length,1);
+assert.ok(exportGeometry({...state,exportTarget:'selection'}).width<300);
+assert.deepEqual(exportGeometry({...state,exportTarget:'frame'}),{x:-10,y:-20,width:200,height:160,name:'My work'});
+assert.throws(()=>exportGeometry({...state,selection:[],exportTarget:'selection'}),/Seleccioná/);
+const doc=serializeMent({...state,exportTarget:'selection'},{id:'qa',name:'Full project'}),imported=importMent(doc);
+assert.equal(imported.state.strokes.length,2);assert.deepEqual(imported.state.frames,state.frames);
+assert.equal(documentSignature({...state,selection:[],exportTarget:'frame'}),documentSignature(state));
+const malformed=JSON.parse(doc);malformed.artboard.settings.frames[0].width=-1;assert.throws(()=>importMent(JSON.stringify(malformed)),/invalid export area/);
+console.log('PASS: selection-only export, named crop, distant content guard, complete .ment, frame import validation and selection-free save state');

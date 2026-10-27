@@ -1,0 +1,907 @@
+{
+  "schema": 1,
+  "hash": "bb69cf4c60454d291ef572ce081292246ea3be7416eb00bb22a0a2a491ecc771",
+  "bytes": 68938590,
+  "files": [
+    {
+      "url": "/app-updates.js",
+      "hash": "758a9ad2b29369f3f9cdd93ff16a1447efd245b96f340a99f3b74edb049b98fe",
+      "bytes": 1781
+    },
+    {
+      "url": "/app.js",
+      "hash": "803c3d4cf1c794388efd2a6b070e557a943eae6bcf62af14cc779fc743b3d550",
+      "bytes": 22020
+    },
+    {
+      "url": "/assets/endo.svg",
+      "hash": "68cb52e85f4b3f5e57c7dc0485f881fa68542bab5905acdc8e700a1654157cbe",
+      "bytes": 346
+    },
+    {
+      "url": "/color-picker.js",
+      "hash": "1c72b5032e3109021ea4f4abbba88a5603697e67d07c142b2b05a587fdbe5443",
+      "bytes": 5556
+    },
+    {
+      "url": "/color-presets.js",
+      "hash": "4f7388d6b3ad8b1274d348464aee61823142fe6dbacedf0d22107482158f9932",
+      "bytes": 2122
+    },
+    {
+      "url": "/color-space.js",
+      "hash": "a6afa2881e941f5baf16f3094d9bd4693e7edf0a31f27fbf28e36c5afe29e870",
+      "bytes": 769
+    },
+    {
+      "url": "/contour/app.js",
+      "hash": "718effaf31cf0edc8728f5ca0dd80ea2259ee1d04a4c42c37238c731780b72a5",
+      "bytes": 15489
+    },
+    {
+      "url": "/contour/assets/contour.svg",
+      "hash": "d02d9bffe44b6e5612180682fab0aa64562c45cdd1b4d6540da1a5f66a26064a",
+      "bytes": 355
+    },
+    {
+      "url": "/contour/color-picker.js",
+      "hash": "7ca347b1917f0e5ec3553cb7faed0e0a21874a4dd280c6270cfce6cb46fa57e8",
+      "bytes": 5251
+    },
+    {
+      "url": "/contour/color-presets.js",
+      "hash": "cdfba927eebbd750da10b0abccd28b76930d436b4cc86468eec3785a62647a11",
+      "bytes": 383
+    },
+    {
+      "url": "/contour/color-space.js",
+      "hash": "a6afa2881e941f5baf16f3094d9bd4693e7edf0a31f27fbf28e36c5afe29e870",
+      "bytes": 769
+    },
+    {
+      "url": "/contour/contours.js",
+      "hash": "0ba3e1b35bb47519a61e7c1f28b4a8f7a7f02d7e5bce97eb79a7b9eef24f76d6",
+      "bytes": 3812
+    },
+    {
+      "url": "/contour/file-save.js",
+      "hash": "1fdabacf3a3f5ffebb61f1f0ea421656598956728189c4ea0aa1a726d8414a83",
+      "bytes": 10225
+    },
+    {
+      "url": "/contour/foreground-worker.js",
+      "hash": "aa1cc690a7c35616b711a919435891723309e86107c381fbc79d374c14ecea77",
+      "bytes": 731
+    },
+    {
+      "url": "/contour/foreground.js",
+      "hash": "7ad71c6f4130ec0a13d6923d526cad2461685e1af9daebe4ba6b96480f131910",
+      "bytes": 1376
+    },
+    {
+      "url": "/contour/geometry.js",
+      "hash": "def5a33b83c3fc019c457311e4de8cbc90dfac13afdca25e90130fc77f5e9153",
+      "bytes": 379
+    },
+    {
+      "url": "/contour/gif-encode.js",
+      "hash": "f69a2122da58a1f2485d8844d869ffb45507585dd21c256f148005159d1db54b",
+      "bytes": 3296
+    },
+    {
+      "url": "/contour/gif-export.js",
+      "hash": "f569da65bb95108f78c73453cfe795bde514e6abecec68e967635255bc8eb0a0",
+      "bytes": 490
+    },
+    {
+      "url": "/contour/gif-worker.js",
+      "hash": "cecfe758835fc07a2fc6f31e9238af7dac130983c19c1aba1e2eb73851b71d45",
+      "bytes": 902
+    },
+    {
+      "url": "/contour/index.html",
+      "hash": "28ea94efd97e5e3a880b05405bb5ceeda66b7928d2979e7fdbd5eeb649896e0d",
+      "bytes": 6936
+    },
+    {
+      "url": "/contour/layout.js",
+      "hash": "6840263f8f0cca73782ec39bcd4e9e8c0edc2e46e6a6010346ee496aeac5297b",
+      "bytes": 336
+    },
+    {
+      "url": "/contour/ment-format.js",
+      "hash": "e2be93083ffed294263765ce07ea1542cc90baf8519789b9e11621a04b9a5b1f",
+      "bytes": 84
+    },
+    {
+      "url": "/contour/model.js",
+      "hash": "a3395f60416f3c7abe050eb6df35d7c9d55f464b2b512dd38179a94db886753f",
+      "bytes": 860
+    },
+    {
+      "url": "/contour/models/onnx-community/ormbg-ONNX/config.json",
+      "hash": "d0b94ab052ace79177085c66a00a3f014a973edb09999cb0108bb01e65ded060",
+      "bytes": 27
+    },
+    {
+      "url": "/contour/models/onnx-community/ormbg-ONNX/onnx/model_quantized.onnx",
+      "hash": "ffbcae62a7b675d616e64cb392ee028786c4cf74f83596590fba13733ef00171",
+      "bytes": 44315205
+    },
+    {
+      "url": "/contour/models/onnx-community/ormbg-ONNX/preprocessor_config.json",
+      "hash": "ed502c6ea29c5fb8aafdafdc5bcf1657dfca09888ff753e5c358672ebcfd448d",
+      "bytes": 283
+    },
+    {
+      "url": "/contour/png-export.js",
+      "hash": "ca93af887e9856c9945768400aa945ed254d4096704675ad527d94176d0bf434",
+      "bytes": 784
+    },
+    {
+      "url": "/contour/renderer.js",
+      "hash": "53318cf96c4c2d6e40b5f1de42a0813f264fca7b47b4f65171dcf9e0ea807d67",
+      "bytes": 3973
+    },
+    {
+      "url": "/contour/style.css",
+      "hash": "41ffa9c97f16c660ca17852c66140c4f83b4526cab9577601542cdad5287cb83",
+      "bytes": 30184
+    },
+    {
+      "url": "/contour/vendor/LICENSE-onnxruntime",
+      "hash": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+      "bytes": 1073
+    },
+    {
+      "url": "/contour/vendor/LICENSE-transformers",
+      "hash": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    {
+      "url": "/contour/vendor/ort-wasm-simd-threaded.jsep.mjs",
+      "hash": "08fb86ec433c78bfb032c5d84a68b8e8e5a8d81268fa39e24314179a5767a5b9",
+      "bytes": 44484
+    },
+    {
+      "url": "/contour/vendor/ort-wasm-simd-threaded.jsep.wasm",
+      "hash": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39",
+      "bytes": 21596019
+    },
+    {
+      "url": "/contour/vendor/transformers.min.js",
+      "hash": "aa5002b70e789798da263f5f99c62bd3e8fcd0c119258a493c40c180648365fa",
+      "bytes": 888173
+    },
+    {
+      "url": "/contour/worker.js",
+      "hash": "39dff93493956b362b31a6aff3310d2a3f3821ed15e53532cc21c9ac72e70f56",
+      "bytes": 539
+    },
+    {
+      "url": "/contour/zoom.js",
+      "hash": "812adcf4d350883cdd389e5340715089867ed6d179408f837846cfbd41c45544",
+      "bytes": 4961
+    },
+    {
+      "url": "/distortion/app.js",
+      "hash": "6f8b759d305af2ff87ed881c8272906787231189ce95495be405285a9ed72c3e",
+      "bytes": 35668
+    },
+    {
+      "url": "/distortion/assets/distortion.svg",
+      "hash": "0560e6ac994a1318ab6b32a0b0b9e7119c56b0ab9770dfdd4d4e08d48ebef26b",
+      "bytes": 219
+    },
+    {
+      "url": "/distortion/index.html",
+      "hash": "bb10cc0b9aeeed9c86a5d2809a55ef06c89542efd1a12004a0a252c96d092385",
+      "bytes": 11957
+    },
+    {
+      "url": "/distortion/model.js",
+      "hash": "4b5651e5d67212bfcaac7198bab951a17597eca01aeb6f0a1aca758a3279f033",
+      "bytes": 20658
+    },
+    {
+      "url": "/distortion/motion.js",
+      "hash": "4e8a52d7520a7cdbc4c581bb2112edbb2050dd2950117260bc49c935cd5684a7",
+      "bytes": 1955
+    },
+    {
+      "url": "/distortion/renderer.js",
+      "hash": "96133b932e150b9c369365596a9379c111dd2e5fc10d242f6d44363365ae869f",
+      "bytes": 2883
+    },
+    {
+      "url": "/distortion/style-model.js",
+      "hash": "7a741b6461b84dffb38edab38afe1f44b5ea9c89e9269913456bd6ec93446535",
+      "bytes": 2866
+    },
+    {
+      "url": "/distortion/style.css",
+      "hash": "512d5be634aa9f8e759b8781b44fd9521085f4869154f72eb45694e5b15501db",
+      "bytes": 7619
+    },
+    {
+      "url": "/distortion/treatments.js",
+      "hash": "3b2886a2b77ce6062a20a30d9cee70052e40b6c56dab692536bd74de6453ddcc",
+      "bytes": 9839
+    },
+    {
+      "url": "/distortion/worker.js",
+      "hash": "3db00756a712d49442fe38d1ae0d078b3fc56486d4f109a6c50f7afae5f5162a",
+      "bytes": 1289
+    },
+    {
+      "url": "/document-bounds.js",
+      "hash": "c1c8e1a661f4225107d5df6372f209d9d1b1c08de695d43088933e570300ab6d",
+      "bytes": 1773
+    },
+    {
+      "url": "/engine.js",
+      "hash": "55c8b448fd4e1e8a65fc5637efbe4f7e8a98d1228aeaa2cdbd19fa93f98b4657",
+      "bytes": 11042
+    },
+    {
+      "url": "/file-save.js",
+      "hash": "9af817739d1ef0295d4cae2b28250e748c5e365b5b48b19d0d37338911c7eee4",
+      "bytes": 9714
+    },
+    {
+      "url": "/folder-ui.css",
+      "hash": "e0c0c42a4b54d38cc33d2ba39d6d79051f7ab1d44f3f79a22e0cc9bf631ea21c",
+      "bytes": 1492
+    },
+    {
+      "url": "/folder-ui.js",
+      "hash": "3c87717ff6b5e35de4580a746c5c782f00c25279e6350aee5d46221f5bcff6c0",
+      "bytes": 7815
+    },
+    {
+      "url": "/folder-workspace.js",
+      "hash": "ee16ac6c70bf1b63cc0f6ae2093841ed794e4447e0ffdd6e2277d8b5d35dce07",
+      "bytes": 8750
+    },
+    {
+      "url": "/foundry/app.js",
+      "hash": "4872720b6bec5762ea13f53eb945d3c8af4bf9b80d26db3e515eea36943311d5",
+      "bytes": 31628
+    },
+    {
+      "url": "/foundry/assets/foundry.svg",
+      "hash": "f6f0282c978f6cb8d3288e5a35a74d7204b916ebaae0ca3f734506a8299e4f40",
+      "bytes": 1082
+    },
+    {
+      "url": "/foundry/font-export.js",
+      "hash": "e09ba9508b95e7edfcfe3f4119a89699019fa5fa5e0064475dca67368c57a51d",
+      "bytes": 6905
+    },
+    {
+      "url": "/foundry/geometry.js",
+      "hash": "3f37b739ab85e2f1530d00ea3a850ef5b547032a0b511abdb06b0e6a40073f00",
+      "bytes": 5485
+    },
+    {
+      "url": "/foundry/index.html",
+      "hash": "ff432f10b28ca8b92f3bf314b420a06546b4f3f70e479a4e1af4ae98b05e9516",
+      "bytes": 15226
+    },
+    {
+      "url": "/foundry/model.js",
+      "hash": "ad0501804d59f90d1a6f8c602c208af01d0d451cc45c2163515e9a91cce187db",
+      "bytes": 3608
+    },
+    {
+      "url": "/foundry/render.js",
+      "hash": "050c0a95c1c67642fc7ef846176ee4be5465c2d8ad9f804e2993e4844725acec",
+      "bytes": 3180
+    },
+    {
+      "url": "/foundry/style.css",
+      "hash": "13f18e5aae8733c91c6498bb1d0ae6847031e7935257930a81f20406bdc32086",
+      "bytes": 11711
+    },
+    {
+      "url": "/foundry/typography.js",
+      "hash": "572fb717ee638ebc2091e2808f86ad7dff578bfb2251ba984a4b3453250b97e1",
+      "bytes": 7289
+    },
+    {
+      "url": "/foundry/vendor/brotli-LICENSE",
+      "hash": "3d180008e36922a4e8daec11c34c7af264fed5962d07924aea928c38e8663c94",
+      "bytes": 1084
+    },
+    {
+      "url": "/foundry/vendor/codepointat-LICENSE",
+      "hash": "483acb265f182907d1caf6cff9c16c96f31325ed23792832cc5d8b12d5f88c8a",
+      "bytes": 1077
+    },
+    {
+      "url": "/foundry/vendor/font-tools.js",
+      "hash": "59a70f6b9f593eaacb0a8d77ddd7de9ca6eb31d07926a44ab122f8e06816ee6c",
+      "bytes": 500684
+    },
+    {
+      "url": "/foundry/vendor/fonteditor-LICENSE",
+      "hash": "56da234b06e4b46e2d3ad7c83721ebc98493849972c7eeadfa5079308261f0b1",
+      "bytes": 1072
+    },
+    {
+      "url": "/foundry/vendor/opentype-LICENSE",
+      "hash": "a5b87c9bc191e7f9c06b07bd7cbbed3ed846dfdb50e859484b2c245aa1ab2e61",
+      "bytes": 1085
+    },
+    {
+      "url": "/foundry/vendor/robust-predicates-LICENSE",
+      "hash": "88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd",
+      "bytes": 1210
+    },
+    {
+      "url": "/foundry/vendor/splaytree-LICENSE",
+      "hash": "dde86d019c413ec5bf3f1794653a5a7ee3abf51bd0f99f63849d5881b4bbdfbb",
+      "bytes": 1102
+    },
+    {
+      "url": "/foundry/vendor/tiny-inflate-LICENSE",
+      "hash": "c0df7f551401f8f80197ff31bf69b8cd23727d127423403282514d242a3ab132",
+      "bytes": 1077
+    },
+    {
+      "url": "/foundry/vendor/woff2-LICENSE",
+      "hash": "d42a3e363d99da22b860ab760faa37dfa9781d74c9f3ed634d05109081616513",
+      "bytes": 1071
+    },
+    {
+      "url": "/foundry/vendor/woff2.wasm",
+      "hash": "afda7e08349046612a019713c8f3baae52ee9d064c712919af020cd2634dddd6",
+      "bytes": 727190
+    },
+    {
+      "url": "/foundry/vendor/xmldom-LICENSE",
+      "hash": "4da724fc305d81606b245b324d4d2586916b9d248b23d82183df753ace0fdf71",
+      "bytes": 1298
+    },
+    {
+      "url": "/frames.js",
+      "hash": "c4cea54b94dfe1d2b746540bfe57a81757d859c6c47d07887b68a6e13fe7676e",
+      "bytes": 5923
+    },
+    {
+      "url": "/history.js",
+      "hash": "c2da1e1cc11fcf5cb80b590963b7d71fbd031aa1041d403cd3aab972ea642192",
+      "bytes": 662
+    },
+    {
+      "url": "/hub/app.js",
+      "hash": "fb177ff3a7dc859811f5bde4383e6262ab8ec4fac9614cdbd5feabbc928217f5",
+      "bytes": 43917
+    },
+    {
+      "url": "/hub/archive.js",
+      "hash": "22bf47430fceb02640a747df8792016b09e97c58199e55fc245ae3f57ca38b76",
+      "bytes": 7837
+    },
+    {
+      "url": "/hub/assets/Basement%20Logo.svg",
+      "hash": "74729b756a31a6f6136f84792c7b299ae1566801f241ddedb23bcf000c66cab0",
+      "bytes": 2257
+    },
+    {
+      "url": "/hub/assets/contour.svg",
+      "hash": "d02d9bffe44b6e5612180682fab0aa64562c45cdd1b4d6540da1a5f66a26064a",
+      "bytes": 355
+    },
+    {
+      "url": "/hub/assets/distortion.svg",
+      "hash": "0560e6ac994a1318ab6b32a0b0b9e7119c56b0ab9770dfdd4d4e08d48ebef26b",
+      "bytes": 219
+    },
+    {
+      "url": "/hub/assets/endo.svg",
+      "hash": "68cb52e85f4b3f5e57c7dc0485f881fa68542bab5905acdc8e700a1654157cbe",
+      "bytes": 346
+    },
+    {
+      "url": "/hub/assets/foundry.svg",
+      "hash": "f6f0282c978f6cb8d3288e5a35a74d7204b916ebaae0ca3f734506a8299e4f40",
+      "bytes": 1082
+    },
+    {
+      "url": "/hub/assets/kiln.svg",
+      "hash": "a4959e9e3d0aac5fd4a838b3fa9a0e0e4457dad7dfed3adab2b64ae26505a45f",
+      "bytes": 376
+    },
+    {
+      "url": "/hub/assets/marble.svg",
+      "hash": "e2f03d685970ade2ba9e93a31c80ae806f7b7d96a0de98d3fbb2718f82afb020",
+      "bytes": 320
+    },
+    {
+      "url": "/hub/assets/tremor.svg",
+      "hash": "7453771745a50a24cb62d55ab62053ff66c9f3b6baf14f75b498cf8df6219d9a",
+      "bytes": 177
+    },
+    {
+      "url": "/hub/assets/ui/about.svg",
+      "hash": "8b811aa79ec7395114c6b821b5468fc99988253c6e5ca9629d932972cb9faa46",
+      "bytes": 359
+    },
+    {
+      "url": "/hub/assets/ui/back.svg",
+      "hash": "d635900a3925beada6ee169a630690bda4f081f6abc485c1f809209ac7938c9b",
+      "bytes": 221
+    },
+    {
+      "url": "/hub/assets/ui/change.svg",
+      "hash": "84be21cf2576f734ad5568253bbd3790cac18828a6eb699973b2cd6137213ad0",
+      "bytes": 628
+    },
+    {
+      "url": "/hub/assets/ui/check.svg",
+      "hash": "33de78dfd69f4a20bdbaad26c57e384ab1598391e9d4e39bdf2b6bfb4ad71742",
+      "bytes": 233
+    },
+    {
+      "url": "/hub/assets/ui/chevron.svg",
+      "hash": "76db3a1bb8d451c1db7f66bd9fc3f5ddf77598b2b893b1d16ad47a55e552caeb",
+      "bytes": 212
+    },
+    {
+      "url": "/hub/assets/ui/contact.svg",
+      "hash": "d9ee745a355f0174ee668d479d7cf924d200dea0f99f6adcf1a093714de3c41a",
+      "bytes": 892
+    },
+    {
+      "url": "/hub/assets/ui/copy.svg",
+      "hash": "795e3a6c4066b15ca8ba72707723f9bc9141bf386299f1359faa606a2693e390",
+      "bytes": 1104
+    },
+    {
+      "url": "/hub/assets/ui/export.svg",
+      "hash": "d27cb00f722e880acf56517a8d4b979c5d375e8d7c6b78a418c5b7dc7df4ff47",
+      "bytes": 230
+    },
+    {
+      "url": "/hub/assets/ui/folder.svg",
+      "hash": "b39c8aec0c8e29a280c8b5da0bd144ac543736618f5c280e816438c0840353a7",
+      "bytes": 777
+    },
+    {
+      "url": "/hub/assets/ui/grid.svg",
+      "hash": "70553fbdfb4c9992d927f40f7a29b34297e19a2c8b5496b9096f5a203c0b4ae8",
+      "bytes": 1214
+    },
+    {
+      "url": "/hub/assets/ui/import.svg",
+      "hash": "207e482e4edb0c0780e4897e6a6708dcef987d6fc44101433f59e92c1616a67e",
+      "bytes": 725
+    },
+    {
+      "url": "/hub/assets/ui/list.svg",
+      "hash": "9198dc14fc7ce0096d644508005556165fb9431b2e18b9f734c72c69e07afef3",
+      "bytes": 335
+    },
+    {
+      "url": "/hub/assets/ui/lock.svg",
+      "hash": "ea39ec8eecb18772a07c00cd154869843d5bac2fabad958f31bf4f04a9837663",
+      "bytes": 855
+    },
+    {
+      "url": "/hub/assets/ui/menu.svg",
+      "hash": "1bbf8aec75297dcc232e3dd0de9a96d92f3d0823516872ee7c9022fe8d12ce46",
+      "bytes": 220
+    },
+    {
+      "url": "/hub/assets/ui/mode.svg",
+      "hash": "d82428d829253bef3b158e26860027f9dd1926c7af074631c7c13c7d289b429a",
+      "bytes": 669
+    },
+    {
+      "url": "/hub/assets/ui/moon.svg",
+      "hash": "b660c4fd945124d1fad139af49777c2f301fc004c790e012dfdbaeec8941e877",
+      "bytes": 424
+    },
+    {
+      "url": "/hub/assets/ui/more.svg",
+      "hash": "11fba367bf27b601efbcb7ca649f1315f2a801edef693e8137cd2f602cd182d7",
+      "bytes": 545
+    },
+    {
+      "url": "/hub/assets/ui/move.svg",
+      "hash": "b05aa2ce0d538bc2e92eca961e8c942e9ef2af380b1dbe23234df39ce1b77fad",
+      "bytes": 293
+    },
+    {
+      "url": "/hub/assets/ui/plus.svg",
+      "hash": "008af927c77dc660f873d35112a3c85ace1c7e260e8cd0376df4270068922127",
+      "bytes": 231
+    },
+    {
+      "url": "/hub/assets/ui/projects.svg",
+      "hash": "e736028c962e2c9c1640cc2039c6df793a90f5eed0193a2647e26e8b601de67b",
+      "bytes": 1678
+    },
+    {
+      "url": "/hub/assets/ui/save.svg",
+      "hash": "1c37d8ac01810f6795280e4ab0195510f298ee41820a8a0cf9286840344b2107",
+      "bytes": 1126
+    },
+    {
+      "url": "/hub/assets/ui/search.svg",
+      "hash": "b217d33086661929308aed2f107ee043cc5eb16c1e0b61382ef607483cb10db2",
+      "bytes": 318
+    },
+    {
+      "url": "/hub/assets/ui/settings.svg",
+      "hash": "9ae18b7285ca071dac6db2544734ece45a5a27dd96820966f5dd2b5a7408b083",
+      "bytes": 4176
+    },
+    {
+      "url": "/hub/assets/ui/storage.svg",
+      "hash": "6b333abbed18a0f1f0d460a8247847021583612852e9f9176cf2bc68016bc43a",
+      "bytes": 749
+    },
+    {
+      "url": "/hub/assets/ui/studios.svg",
+      "hash": "70d9331a62fa87346daecdc4b47820c405bd6161d1f782c3cc4052532b54b244",
+      "bytes": 687
+    },
+    {
+      "url": "/hub/assets/ui/sun.svg",
+      "hash": "127087eafbfc03cef5555dc0dfeb902f9dd140ccdacd47edff5981783e1b803d",
+      "bytes": 448
+    },
+    {
+      "url": "/hub/assets/ui/trash.svg",
+      "hash": "9ee7c5b279d8e00b4d0b9243db37904118374da668ca9cc4f586bb9debf9ef7e",
+      "bytes": 712
+    },
+    {
+      "url": "/hub/assets/ui/user.svg",
+      "hash": "3510d85cfa180b68ba8b62a8d913bf05cc8c56d1449817c528864cc527253726",
+      "bytes": 365
+    },
+    {
+      "url": "/hub/assets/ui/version.svg",
+      "hash": "9d2b6ac337a6d3dc2b50f064e6e8a373822933de4a363fcc00bcd5cc09b32a79",
+      "bytes": 1128
+    },
+    {
+      "url": "/hub/index.html",
+      "hash": "0c4a545ef817d4c9dff21e280ef86e59b5a143bd05812b76b149a065e5e00528",
+      "bytes": 14705
+    },
+    {
+      "url": "/hub/studios.js",
+      "hash": "eac2f88b8a4f1eff451482c244f882576663dae5f9de45eed2cce10dd5bc6c93",
+      "bytes": 7688
+    },
+    {
+      "url": "/hub/style.css",
+      "hash": "afab0fb89cb444b63dc44b58c8d83e1cda01338224f11112bb889b891db495a7",
+      "bytes": 31075
+    },
+    {
+      "url": "/icons/icon-192.png",
+      "hash": "ee25bf79623eff70833f3781d19d11c62d21d1950b5239cd2d70d436f8f2bb33",
+      "bytes": 8225
+    },
+    {
+      "url": "/index.html",
+      "hash": "3484fa11b3ae80d7170c33bf5b2b7039c39b5a4c95efe31b33736e6534edc1cd",
+      "bytes": 10419
+    },
+    {
+      "url": "/kiln/app.js",
+      "hash": "a344778bd4d147b095179995ff4589c80795af195f14e1c1575615ed5bea08cf",
+      "bytes": 17334
+    },
+    {
+      "url": "/kiln/assets/kiln.svg",
+      "hash": "a4959e9e3d0aac5fd4a838b3fa9a0e0e4457dad7dfed3adab2b64ae26505a45f",
+      "bytes": 376
+    },
+    {
+      "url": "/kiln/color-picker.js",
+      "hash": "7ca347b1917f0e5ec3553cb7faed0e0a21874a4dd280c6270cfce6cb46fa57e8",
+      "bytes": 5251
+    },
+    {
+      "url": "/kiln/color-presets.js",
+      "hash": "50836eee2ed02b777b451fd3f3a6bddcf2c032b4bfcf33ec5c42bef7a32808aa",
+      "bytes": 393
+    },
+    {
+      "url": "/kiln/color-space.js",
+      "hash": "a6afa2881e941f5baf16f3094d9bd4693e7edf0a31f27fbf28e36c5afe29e870",
+      "bytes": 769
+    },
+    {
+      "url": "/kiln/file-save.js",
+      "hash": "7754607708cd35e15e64a63b949ac7e43855aadf94ab95fbc38ad8f796423b9c",
+      "bytes": 10216
+    },
+    {
+      "url": "/kiln/geometry.js",
+      "hash": "4943687e4af9534da06a4b08895bc633a4d6ddfbe42fab536e0d3356a65fc215",
+      "bytes": 5967
+    },
+    {
+      "url": "/kiln/gif-encode.js",
+      "hash": "f69a2122da58a1f2485d8844d869ffb45507585dd21c256f148005159d1db54b",
+      "bytes": 3296
+    },
+    {
+      "url": "/kiln/gif-export.js",
+      "hash": "f569da65bb95108f78c73453cfe795bde514e6abecec68e967635255bc8eb0a0",
+      "bytes": 490
+    },
+    {
+      "url": "/kiln/gif-worker.js",
+      "hash": "3cadbd021f8801ff2ba18cd1af4ff449774d04c2345f48e67aa8cc6a613b10ff",
+      "bytes": 1095
+    },
+    {
+      "url": "/kiln/index.html",
+      "hash": "3cd3d5309a441b517e3fe09a9fea6dbd2435d3723ee6add6289a34f97fc12e46",
+      "bytes": 6935
+    },
+    {
+      "url": "/kiln/layout.js",
+      "hash": "6840263f8f0cca73782ec39bcd4e9e8c0edc2e46e6a6010346ee496aeac5297b",
+      "bytes": 336
+    },
+    {
+      "url": "/kiln/ment-format.js",
+      "hash": "e2be93083ffed294263765ce07ea1542cc90baf8519789b9e11621a04b9a5b1f",
+      "bytes": 84
+    },
+    {
+      "url": "/kiln/model.js",
+      "hash": "ebe4642676af56b4a077ffab9d58f9c8d585ebf23680c78d4b0381e1eb8b0815",
+      "bytes": 2307
+    },
+    {
+      "url": "/kiln/png-export.js",
+      "hash": "ca93af887e9856c9945768400aa945ed254d4096704675ad527d94176d0bf434",
+      "bytes": 784
+    },
+    {
+      "url": "/kiln/renderer.js",
+      "hash": "d0ab9a0f61231dae5c742b6210d5a93bc27d524c1b7a9040127464c463db5932",
+      "bytes": 4599
+    },
+    {
+      "url": "/kiln/renderers/materials.js",
+      "hash": "f8d0c2b1714e07c2787f3186577f6455095c49f44dba030b3b9890a719ac8c61",
+      "bytes": 4447
+    },
+    {
+      "url": "/kiln/renderers/tiles.js",
+      "hash": "53146fb3568585f25c533db1c9902fff1593a1141ef83f7ec5138756fd042493",
+      "bytes": 7168
+    },
+    {
+      "url": "/kiln/style.css",
+      "hash": "216c0a6eb0bbad2fee7f8cf4f9394f17d384c16217780c3930996e785b7efd57",
+      "bytes": 30184
+    },
+    {
+      "url": "/kiln/worker.js",
+      "hash": "39dff93493956b362b31a6aff3310d2a3f3821ed15e53532cc21c9ac72e70f56",
+      "bytes": 539
+    },
+    {
+      "url": "/kiln/zoom.js",
+      "hash": "c64d6f51d1384a9acbb4dfac42f6511226d7995c312d4f926ced6eae1376b8f7",
+      "bytes": 4958
+    },
+    {
+      "url": "/layout.js",
+      "hash": "6840263f8f0cca73782ec39bcd4e9e8c0edc2e46e6a6010346ee496aeac5297b",
+      "bytes": 336
+    },
+    {
+      "url": "/marble/app.js",
+      "hash": "208222ee7bcd23ea9dcfc5cbd3c0c1b5fd7c439ba6c518310533849010da94d5",
+      "bytes": 18215
+    },
+    {
+      "url": "/marble/assets/marble.svg",
+      "hash": "e2f03d685970ade2ba9e93a31c80ae806f7b7d96a0de98d3fbb2718f82afb020",
+      "bytes": 320
+    },
+    {
+      "url": "/marble/engine.js",
+      "hash": "56cefec647dec2a365e9d5dcb58af29995fcf33409bee7298e756566ba00f8cd",
+      "bytes": 5952
+    },
+    {
+      "url": "/marble/export.js",
+      "hash": "0020fb54b216dd1b7284cd6ce6c220aa297c026d3601d355faa1f79ce3dfdb67",
+      "bytes": 4400
+    },
+    {
+      "url": "/marble/index.html",
+      "hash": "05cfb43b240ba171f50d3c433779773e8df7933e44e85cd27e7f3c8e4ebf7f06",
+      "bytes": 7705
+    },
+    {
+      "url": "/marble/runtime.js",
+      "hash": "49754e74508f559f2cfa133d4fb5a5a6e221c048780f47a07df28fb1c9d4a7a4",
+      "bytes": 2619
+    },
+    {
+      "url": "/marble/style.css",
+      "hash": "cb5db24bf9b47e4274638db6119a536149cf367d3adb459c0bbecae6b7f40026",
+      "bytes": 9484
+    },
+    {
+      "url": "/ment-format.js",
+      "hash": "a95b9fcf8bf93b372722f9356ba0615a1dda535f6d4a37fa258b02adbfbf380b",
+      "bytes": 1495
+    },
+    {
+      "url": "/png-export.js",
+      "hash": "d35e073d3ac36ccf063c63723c39125b9e6058ae91ffd9db44446d50509ae6b3",
+      "bytes": 1335
+    },
+    {
+      "url": "/png-worker.js",
+      "hash": "7aae880a40fd6ce82f2eab5811066d173de1c5fd8a9a82ec7146cc8929491693",
+      "bytes": 718
+    },
+    {
+      "url": "/project-store.js",
+      "hash": "ad6d63c4d41bcc4883417df62f2973f245f891c4ec92b3cbce2107d93249dfd3",
+      "bytes": 20152
+    },
+    {
+      "url": "/pwa.js",
+      "hash": "ff73f8207b8a5a19c444d547bf49f0e42ecc233a4cb2e604b638d2acf48a18c5",
+      "bytes": 4484
+    },
+    {
+      "url": "/resolution-worker.js",
+      "hash": "cb7677acab08ccbc39d80c549bf8488e84e23db18b61c171da1fccf8c51e966b",
+      "bytes": 1666
+    },
+    {
+      "url": "/resolution.js",
+      "hash": "d22ef5c922941f9af07a0f45f7098b481e99154e654b6426717ccd7e891b4d8e",
+      "bytes": 2355
+    },
+    {
+      "url": "/session.js",
+      "hash": "195fa6ee1325d0f5879340d8d096245167d142b95b706bea8d5648a70703c5f0",
+      "bytes": 3494
+    },
+    {
+      "url": "/storage-usage.js",
+      "hash": "e151c14c50a3089a40a419c435b1bed8d06cacc548ea23ca3f7254990e3f331d",
+      "bytes": 1861
+    },
+    {
+      "url": "/style.css",
+      "hash": "d055eeaa15012f41aa06675bc2775c9d4dfbc1e3db85282e2f674cdce284288c",
+      "bytes": 28596
+    },
+    {
+      "url": "/symmetry.js",
+      "hash": "268357568cf6e5ab44da2ef7b847b2b405585fb8eb0ee4580cc39f0d663902ad",
+      "bytes": 2941
+    },
+    {
+      "url": "/tremor/app.js",
+      "hash": "d27fc26d74db513301a3b3bdc091f20a951bc7c9787b86a91a91a5b541173b68",
+      "bytes": 21932
+    },
+    {
+      "url": "/tremor/assets/tremor.svg",
+      "hash": "7453771745a50a24cb62d55ab62053ff66c9f3b6baf14f75b498cf8df6219d9a",
+      "bytes": 177
+    },
+    {
+      "url": "/tremor/color-picker.js",
+      "hash": "1c72b5032e3109021ea4f4abbba88a5603697e67d07c142b2b05a587fdbe5443",
+      "bytes": 5556
+    },
+    {
+      "url": "/tremor/color-presets.js",
+      "hash": "c40dc9a13b134f4f191a2284347a1dd303dcaf78601bbbd86e6fc1d0ddd5a837",
+      "bytes": 399
+    },
+    {
+      "url": "/tremor/color-space.js",
+      "hash": "a6afa2881e941f5baf16f3094d9bd4693e7edf0a31f27fbf28e36c5afe29e870",
+      "bytes": 769
+    },
+    {
+      "url": "/tremor/document-bounds.js",
+      "hash": "921f37db5d2bf7808c832a4448d10342baf03a5dcff39635f82ff942bafbfee8",
+      "bytes": 1773
+    },
+    {
+      "url": "/tremor/engine.js",
+      "hash": "b6f6b1f91eb2cb0dcd022136165f444ad7342e3d13ac211ff4877456464d5d43",
+      "bytes": 8780
+    },
+    {
+      "url": "/tremor/file-save.js",
+      "hash": "f8186f8d2642fffbe1f13d001228c7a7567f5980ca8c7a76d1ac3bedd09828f9",
+      "bytes": 9710
+    },
+    {
+      "url": "/tremor/frames.js",
+      "hash": "ad213aff14c6a88995eac47a9efb1d5727eb58bdfa9c36c99065fdc2cb17d05b",
+      "bytes": 5923
+    },
+    {
+      "url": "/tremor/gif-encode.js",
+      "hash": "6a051adad44d2bd3fdde2c077855250a5c88cc7f9a1d5498b4f3a6985d51d08c",
+      "bytes": 1384
+    },
+    {
+      "url": "/tremor/gif-export.js",
+      "hash": "aef12675a06a4aa73db2c25c4cb46d17a72d9081d559a905fd024139b34b2d5d",
+      "bytes": 410
+    },
+    {
+      "url": "/tremor/gif-geometry.js",
+      "hash": "801a00787c085931359360bc9632fd6d7617a2b69a5ed07643ffaf480e0e086f",
+      "bytes": 527
+    },
+    {
+      "url": "/tremor/gif-worker.js",
+      "hash": "c4d407c8f753a1a7d2ad5a2d9e7a00f322c84726b0e34b7043feb92f84f20e9a",
+      "bytes": 1406
+    },
+    {
+      "url": "/tremor/history.js",
+      "hash": "c2da1e1cc11fcf5cb80b590963b7d71fbd031aa1041d403cd3aab972ea642192",
+      "bytes": 662
+    },
+    {
+      "url": "/tremor/index.html",
+      "hash": "05e45c6ad7ae075c3407d9dd2273131959986c7c1cfe03e41fe7564ee24d1bdd",
+      "bytes": 9889
+    },
+    {
+      "url": "/tremor/layout.js",
+      "hash": "6840263f8f0cca73782ec39bcd4e9e8c0edc2e46e6a6010346ee496aeac5297b",
+      "bytes": 336
+    },
+    {
+      "url": "/tremor/ment-format.js",
+      "hash": "fa37ed28616222d948866bcbd478a1c5c94f555750736be245b159a1acb279df",
+      "bytes": 1603
+    },
+    {
+      "url": "/tremor/motion.js",
+      "hash": "47b1db9f3033c6615ff75ee50e7f727e9743a8305adf4de45f59f0a5ac71ce6a",
+      "bytes": 2473
+    },
+    {
+      "url": "/tremor/style.css",
+      "hash": "783d4c684caaf06a32dd0bc273d3cd99017acc3fc14fde10058626b389859e0c",
+      "bytes": 29207
+    },
+    {
+      "url": "/tremor/symmetry.js",
+      "hash": "268357568cf6e5ab44da2ef7b847b2b405585fb8eb0ee4580cc39f0d663902ad",
+      "bytes": 2941
+    },
+    {
+      "url": "/tremor/zoom.js",
+      "hash": "76ab80cc774c4497523718e6f924c033bcbe1858693f63044e9ddcaf43f20788",
+      "bytes": 4503
+    },
+    {
+      "url": "/zoom.js",
+      "hash": "76ab80cc774c4497523718e6f924c033bcbe1858693f63044e9ddcaf43f20788",
+      "bytes": 4503
+    }
+  ]
+}

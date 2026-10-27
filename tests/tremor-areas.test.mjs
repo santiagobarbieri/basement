@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {gifGeometry,exportState} from '../dist/tremor/gif-geometry.js';
+import {ChromeSurface,rebuild} from '../dist/tremor/engine.js';
+import {serializeMent,documentSignature} from '../dist/tremor/ment-format.js';
+import {importMent} from '../dist/project-store.js';
+const settings={brush:'tremor',animation:'antenna',width:20,amount:4,rate:12,roughness:70,settle:0,noise:10,primary:'#d9d2ed',shadow:'#382f4a',contrast:'#ffffff',variation:0,speed:0};
+const stroke=x=>({number:x,createdAt:0,settings,tool:{mode:'none'},points:[{x,y:10,time:0,pressure:1},{x:x+30,y:20,time:100,pressure:1,finish:true}]});
+const state={infinite:true,scene:{frameTime:1000,relief:.8,smooth:25,merge:1},defaults:settings,tool:{mode:'none'},nextNumber:3,strokes:[stroke(-3000),stroke(100000)],selection:[0],frames:[{id:'frame',name:'Motion',x:-3040,y:-30,width:140,height:100}]};
+assert.throws(()=>gifGeometry({...state,exportTarget:'all'}),/demasiado grande/);
+const region=gifGeometry({...state,exportTarget:'frame'});assert.equal(region.name,'Motion');assert.equal(region.x,-3040);assert.ok(region.width*region.height<=320000);
+assert.equal(exportState({...state,exportTarget:'selection'}).strokes.length,1);
+const ctx={clearRect(){},putImageData(){},createImageData(w,h){return {data:new Uint8ClampedArray(w*h*4)}}};
+const surface=new ChromeSurface({width:140,height:100,getContext(){return ctx}},{infinite:true,originX:-3040,originY:-30,logicalWidth:960,logicalHeight:850});
+rebuild(surface,[state.strokes[0]],state.scene);surface.render(state.scene,[settings],true);const first=surface.image.data.slice();assert.ok(first.some((v,i)=>i%4===3&&v>0));
+rebuild(surface,[state.strokes[0]],{...state.scene,frameTime:1200});surface.render({...state.scene,frameTime:1200},[settings],true);assert.notDeepEqual(first,surface.image.data);
+const doc=serializeMent(state,{id:'qa',name:'Motion project'}),imported=importMent(doc);assert.equal(imported.state.strokes.length,2);assert.deepEqual(imported.state.frames,state.frames);
+assert.equal(documentSignature(state),documentSignature({...state,scene:{...state.scene,frameTime:3000},view:{x:50,y:50,scale:2},selection:[]}));
+console.log('PASS: animated negative coordinates, GIF crop bounds, selection-only output, distant content guard and full editable .ment');

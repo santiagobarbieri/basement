@@ -1,0 +1,11 @@
+.git
+.DS_Store
+**/__pycache__/**
+*.py[cod]
+tests
+scripts/launch.py
+docs
+AGENTS.md
+STATUS.md
+README.md
+Abrir BASEMENT.command

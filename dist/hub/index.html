@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111111">
+<title>Basement — Artboards</title><link rel="icon" href="/icons/icon-192.png"><link rel="stylesheet" href="style.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('basement-theme')==='light'?'light':'dark'}catch{}</script>
+</head>
+<body>
+<div class="hub">
+ <aside class="sidebar" id="sidebar" aria-label="Basement navigation">
+  <a class="wordmark" href="./" aria-label="Basement home"><img src="assets/Basement%20Logo.svg" alt="BASEMENT" width="226" height="75"></a>
+  <button class="profile-button" id="profile-open" aria-label="Open settings"><span class="avatar avatar-small" id="profile-avatar"><i class="icon" data-icon="user"></i></span><span id="profile-name">Local profile</span><i class="icon settings-chevron" data-icon="settings"></i></button>
+  <nav class="side-nav" aria-label="Main navigation">
+   <button data-view="projects" aria-current="page"><i class="icon" data-icon="projects"></i>Artboards</button>
+   <button data-view="studios"><i class="icon" data-icon="studios"></i>Studios / Apps</button>
+   <button data-view="about"><i class="icon" data-icon="about"></i>About</button>
+   <button data-view="contact"><i class="icon" data-icon="contact"></i>Contact</button>
+  </nav>
+  <div class="folder-block">
+   <button class="info-row" data-settings="folder"><span><i class="icon" data-icon="folder"></i>Folder</span><span class="muted truncate" data-folder-name>Not connected</span></button>
+   <button class="outline wide" data-settings="folder"><i class="icon" data-icon="change"></i>Change</button>
+  </div>
+  <div class="version-block">
+   <button class="info-row" data-settings="updates"><span><i class="icon" data-icon="version"></i>Version</span><span class="muted">Beta 2.0</span></button>
+   <button class="info-row update-status" data-settings="updates"><span><i class="icon" data-icon="check"></i><span data-update-label>Up to date</span></span></button>
+   <button class="primary wide" data-apply hidden>Update</button>
+  </div>
+  <div class="sidebar-bottom">
+   <div class="info-row"><span><i class="icon" data-icon="mode"></i>Mode</span><div class="mode-control"><span class="muted" id="mode-label">Dark</span><div class="segmented"><button data-theme-choice="dark" aria-label="Dark mode" aria-pressed="true"><i class="icon" data-icon="moon"></i></button><button data-theme-choice="light" aria-label="Light mode" aria-pressed="false"><i class="icon" data-icon="sun"></i></button></div></div></div>
+   <button class="info-row" data-settings="folder"><span><i class="icon" data-icon="lock"></i>Security</span><span class="muted truncate" id="security-status">Choose a folder</span></button>
+   <button class="info-row" data-settings="storage"><span><i class="icon" data-icon="storage"></i>Storage</span><span class="muted" id="library-size">0 B</span></button>
+  </div>
+ </aside>
+ <header class="toolbar">
+  <button id="sidebar-toggle" class="icon-button mobile-menu" aria-label="Toggle navigation" aria-expanded="false"><i class="icon" data-icon="menu"></i></button>
+  <h1 id="page-title">All Artboards</h1>
+  <div class="toolbar-actions" id="library-controls">
+   <div id="footer-actions"><button id="export-library" class="outline"><i class="icon" data-icon="export"></i>Export</button><button id="import-library" class="outline"><i class="icon" data-icon="import"></i>Import</button><button class="primary" data-trash-open><i class="icon" data-icon="trash"></i>Trash</button></div>
+   <label class="search-box"><i class="icon" data-icon="search"></i><input id="project-search" type="search" placeholder="Search" aria-label="Search Artboards by name" autocomplete="off"></label>
+   <div class="filter-wrap"><button id="filter-toggle" class="outline" aria-haspopup="menu" aria-expanded="false"><span id="filter-label">All Studios</span><i class="icon" data-icon="chevron"></i></button><div id="filter-menu" class="popover filter-menu" role="menu" hidden></div></div>
+   <div class="segmented view-toggle" aria-label="Library view"><button data-layout="grid" aria-label="Grid view" aria-pressed="true"><i class="icon" data-icon="grid"></i></button><button data-layout="list" aria-label="List view" aria-pressed="false"><i class="icon" data-icon="list"></i></button></div>
+   <button id="new-file" class="primary">New Artboard <i class="icon" data-icon="plus"></i></button>
+  </div>
+ </header>
+ <main class="library-panel" id="library-panel">
+  <section id="projects-view" aria-label="Artboard library">
+   <div class="selection-bar" id="selection-bar" hidden><span id="selection-count"></span><button class="outline" id="select-all">Select all</button><button class="outline" id="download-selection"><i class="icon" data-icon="export"></i>Download ZIP</button><button class="outline" id="move-selection"><i class="icon" data-icon="move"></i>Move</button><button class="outline" id="trash-selection"><i class="icon" data-icon="trash"></i>Trash</button><button class="text-button" id="cancel-selection">Cancel selection</button></div>
+   <div class="list-heading" id="list-heading" hidden><span>Studio</span><span>Artboard name</span><span>Last opened</span><span></span></div>
+   <div id="project-list" class="project-grid"></div>
+   <div class="empty-state" id="library-empty"><p>No Artboards yet.</p><button class="text-button" id="empty-folder" hidden>Choose a folder to get started</button></div>
+  </section>
+  <section id="placeholder-view" class="placeholder-view" hidden><p>Coming soon</p></section>
+ </main>
+ <footer class="library-footer"><p id="library-feedback" role="status" aria-live="polite"></p><span id="connection-status" hidden>Offline · your open Artboard can still be saved to your folder</span></footer>
+</div>
+<input id="ment-file" type="file" accept=".ment,.zip,application/zip" multiple hidden>
+<dialog id="new-artboard" class="large-dialog" aria-labelledby="new-title">
+ <div id="studio-picker" class="studio-picker"><div class="picker-heading"><h2 id="new-title">New Artboard</h2><p>Choose a Studio and start building something new</p></div><div id="studio-grid" class="studio-grid"></div></div>
+ <form id="new-form" class="new-details" novalidate hidden>
+  <div class="studio-story"><span class="story-mark" aria-hidden="true"></span><div class="story-copy"><h2 id="about-studio"></h2><p id="studio-description"></p></div></div>
+  <div class="new-fields"><button class="text-button back-button" id="back-to-studios" type="button"><i class="icon" data-icon="back"></i>Choose another Studio</button><h2 id="new-studio-title"></h2><div class="new-inputs"><label class="field-label" for="new-project-name">Artboard name</label><input id="new-project-name" maxlength="80" placeholder="Type here" autocomplete="off" required><div id="initial-image-field" hidden><label class="field-label" for="initial-image">Initial image</label><label class="image-upload" id="image-upload-label" for="initial-image" tabindex="0" role="button"><i class="icon" data-icon="import"></i><span id="image-file-label">Choose PNG, JPG or WebP</span><input id="initial-image" type="file" accept="image/png,image/jpeg,image/webp" hidden></label><img id="image-preview" alt="Selected initial image" hidden></div><p class="form-error" id="new-error" role="alert"></p></div><div class="new-fields-bottom"><div class="info-row"><span><i class="icon" data-icon="folder"></i>Folder</span><span class="muted truncate" data-folder-name>Not connected</span></div><div class="info-row"><span><i class="icon" data-icon="lock"></i>Security</span><span class="muted">On your computer</span></div><button class="primary wide" id="create-artboard" type="submit"><i class="icon" data-icon="plus"></i>Create Artboard</button></div></div>
+ </form>
+</dialog>
+<dialog id="settings" class="large-dialog settings-dialog" aria-labelledby="settings-title">
+ <div class="settings-shell"><aside class="settings-nav"><h2 id="settings-title">Settings</h2><nav aria-label="Settings sections"><button data-settings-tab="account" aria-current="page"><i class="icon" data-icon="user"></i>Account</button><button data-settings-tab="folder"><i class="icon" data-icon="folder"></i>Folder<span class="muted">Change folder</span></button><button data-settings-tab="storage"><i class="icon" data-icon="storage"></i>Storage<span class="muted">Check space used</span></button><button data-settings-tab="updates"><i class="icon" data-icon="change"></i>Updates</button></nav><button class="trash-settings" data-trash-open><i class="icon" data-icon="trash"></i>Trash</button></aside>
+ <div class="settings-content">
+  <form id="account-panel" class="settings-page" data-settings-page="account"><label class="field-label" for="account-name">Name</label><input id="account-name" maxlength="80" placeholder="Local profile" autocomplete="nickname"><div class="profile-photo-fields"><div><label class="field-label" for="account-photo">Profile picture</label><label class="outline wide" for="account-photo" tabindex="0" role="button"><i class="icon" data-icon="change"></i>Change</label><input id="account-photo" type="file" accept="image/png,image/jpeg,image/webp" hidden><button class="text-button remove-photo" id="remove-photo" type="button">Remove picture</button></div><span class="avatar avatar-large" id="account-avatar"><i class="icon" data-icon="user"></i></span></div><p id="account-error" class="form-error" role="alert"></p><button class="primary settings-save" type="submit"><i class="icon" data-icon="save"></i>Save Changes</button></form>
+  <section class="settings-page" data-settings-page="folder" hidden><h3>Artboard folder</h3><p>One folder for all your Studios. Each Artboard is a portable .ment file, with its images and settings included.</p><div class="info-row"><span><i class="icon" data-icon="folder"></i>Active folder</span><span data-folder-name>Not connected</span></div><p id="folder-status" role="status"></p><div class="settings-actions"><button id="choose-folder" class="primary"><i class="icon" data-icon="folder"></i>Choose folder</button><button id="reconnect-folder" class="outline" hidden><i class="icon" data-icon="change"></i>Reconnect folder</button></div><div class="settings-actions" id="hub-recovery-actions" hidden><button id="retry-hub-save" class="primary">Retry save</button><button id="emergency-hub-save" class="outline">Download emergency .ment</button></div><fieldset class="folder-options" id="folder-options"><legend>When choosing another folder</legend><label><input type="radio" name="folder-mode" value="open" checked><span>Open another library<small>Keep this library where it is.</small></span></label><label><input type="radio" name="folder-mode" value="copy"><span>Copy this library<small>Copy Artboards to the new folder and keep the originals.</small></span></label><label><input type="radio" name="folder-mode" value="move"><span>Move this library<small>Remove the originals after each copy has been verified.</small></span></label></fieldset><p class="form-error" id="folder-error" role="alert"></p></section>
+  <section class="settings-page" data-settings-page="storage" hidden>
+   <h3>Storage</h3><p class="storage-intro">A breakdown of your Artboards and the space used by Basement.</p>
+   <div class="storage-group"><div class="storage-heading"><h4>Library folder</h4><strong id="storage-library-total">Checking…</strong></div><div id="storage-library-bar" class="storage-bar" role="img" aria-label="Checking library storage"></div><div id="storage-library-legend" class="storage-legend"></div><p class="storage-caption"><span id="storage-count">0</span> Artboards · <span id="storage-library-size">0 B</span><span id="storage-trash-summary"></span></p></div>
+   <div class="storage-group browser-storage-group"><div class="storage-heading"><h4>Browser storage</h4><span><strong id="storage-browser-used">Checking…</strong><span class="muted"> of </span><span id="storage-browser-quota">Checking…</span></span></div><div id="storage-browser-bar" class="storage-bar browser-storage-bar" role="meter" aria-label="Browser storage used" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><span id="storage-browser-fill" class="storage-segment"></span></div><div class="browser-storage-legend"><span><i class="storage-dot browser-used"></i>Recovery &amp; site data</span><span><i class="storage-dot browser-available"></i>Available allowance</span></div><p class="storage-caption" id="storage-browser-remaining"></p></div>
+   <p class="storage-note">Browser allowance is an estimate, separate from free disk space. Your Artboard files live in the folder you choose.</p>
+  </section>
+  <section class="settings-page" data-settings-page="updates" hidden><h3>Beta 2.0</h3><p>Updates are applied here in the hub. Finish your work and close other Basement windows before applying an update.</p><div class="info-row"><span>Build</span><span class="build-label" data-build>Checking…</span></div><div class="settings-actions"><button class="outline" data-check><i class="icon" data-icon="change"></i>Check for updates</button><button class="primary" data-apply hidden>Update</button></div><p data-update-message role="status"></p></section>
+ </div></div>
+</dialog>
+<dialog id="trash-dialog" class="large-dialog trash-dialog" aria-labelledby="trash-title"><header class="trash-heading"><h2 id="trash-title">Trash</h2><button id="empty-trash" class="outline"><i class="icon" data-icon="trash"></i>Empty trash</button></header><p class="muted trash-description">Artboards stay here for 30 days. Basement asks for confirmation before permanently deleting expired Artboards.</p><div id="trash-list"></div><p id="trash-empty" class="muted">Trash is empty.</p><p id="trash-feedback" role="status"></p></dialog>
+<dialog id="action-dialog" class="action-dialog" aria-labelledby="action-title"><form id="action-form"><h2 id="action-title"></h2><p id="action-description"></p><label class="field-label" id="action-input-label" for="action-input" hidden>Artboard name</label><input id="action-input" maxlength="80" autocomplete="off" hidden><label id="action-apply-label" class="checkbox-label" hidden><input id="action-apply" type="checkbox">Apply to remaining conflicts</label><p id="action-error" class="form-error" role="alert"></p><div class="action-buttons" id="action-buttons"></div></form></dialog>
+<div id="project-menu" class="popover project-menu" role="menu" hidden></div>
+<script type="module" src="/session.js"></script><script type="module" src="app.js"></script><script type="module" src="/app-updates.js"></script>
+</body></html>

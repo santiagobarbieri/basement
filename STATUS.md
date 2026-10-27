@@ -1,127 +1,17 @@
-# BASEMENT status
+# Basement Beta 2.0 — estado actual
 
-Updated: 2026-10-12 (Buenos Aires).
+27 Oct 2026. Desarrollo local; publicación en GitHub/Vercel pendiente de la revisión del usuario.
 
-## Current phase
+Hub con siete Studios: Endo, Kiln, Tremor, Foundry, Contour, Marble y Distortion. Biblioteca de Artboards con grilla/lista, búsqueda, filtros, selección múltiple, creación en dos pasos, perfil local y temas. Export, Import y Trash están junto a Search en la barra superior, como en la última referencia. Studios / Apps, About y Contact permanecen en Coming soon.
 
-Phases 0–3 approved by Santi. Phase 4 shell/home and artboard lifecycle implemented;
-awaiting user feedback and checkpoint 4 approval. Engine integration phases 5 and
-6 have not started. The normal BASEMENT app is now available.
+Estructura fija, scroll limitado a las colecciones de Artboards, cuatro cards por fila en escritorio, con ancho adaptable y separación de 16 px. Bordes suaves de gris neutro en ambos temas. Filtro por encima de la grilla, símbolo activo visible y filas de navegación estables sin separadores sobre las esquinas de la selección. Storage distingue bytes reales por Studio/papelera y cuota estimada del navegador.
 
-## Phase 4 results
+Un .ment portable por Artboard en la carpeta elegida. Guardado automático a los cinco segundos, guardado manual, IDs estables, mudanzas verificadas, ZIP con resolución de conflictos y papelera con confirmación de eliminación/vencimiento. Errores de disco bloquean la edición con recuperación y copia de emergencia. Cambios externos permiten elegir la versión. Apertura confirmada sin aviso de salida; el trabajo realmente pendiente mantiene su protección.
 
-- Built shell/app as a standalone macOS Tauri shell; bundle identifier com.basement.desktop. Build/run scripts: scripts/build-basement.command and scripts/run-basement.command.
-- Home reproduces Main Page's two columns, SVG wordmark, title/type hierarchy, exact tagline, seven Studio pills, eight filters, current Buenos Aires date/time, real filesystem list/count, hover/focus, empty state and scroll. No search, Recent section or visible settings button.
-- Santi confirmed SVG logo, Cooper BT titles and Albert Sans body text. Found his wordmark and Albert Sans assets, copied SVG geometry with reference-gray fill, bundled Albert Sans with OFL, and used locally installed Cooper BT Medium Italic. No Druk/trial font was reused or embedded.
-- Palette sampled as raw RGB from the provided PNG, recorded in docs/design/reference-palette.json; Studio accents are shared variables between home and chrome.
-- Proposed and showed the one-step artboard form before implementing its UI. Santi approved name, preset/custom dimensions, resolution, and transparent/custom-color background.
-- Only ENDO and PRISM can create artboards; five pending Studios remain visible with disabled Soon pills.
-- Real flat .artboard folders contain versioned project.json, main.png, thumbnail.png and assets/. Default root ~/Basement; no document database. PNG stores chosen print resolution and background.
-- Disk metadata/image writes are atomic, names avoid collisions, rename updates the real folder while retaining identity, invalid folders are reported, and home refreshes from disk every three seconds while preserving row focus.
-- Common chrome for both Studios: editable artboard name, mode, neutral panels, accent line, canvas fit/zoom, background layer, metadata, status/path and native PNG export. Painting/editing controls are explicitly disabled pending their engine phases.
-- Preferences via Cmd-comma/native menu: folder chooser and persisted light/dark appearance. Native text-edit menu and app icon derived from Santi's favicon added.
-- Packaged and registered .artboard as a macOS document package. A plain open of a test package dispatched Finder-open to BASEMENT and selected PRISM correctly.
-- Four meaningful storage tests passed. Native QA created/reopened both Studios and submitted the actual approved form. Browser QA against those real native files verified filters, zoom and loaded fonts with no exceptions.
-- Captures and reports are in docs/design. Screenshots render the original frontend in Chrome with a read-only bridge to real QA artboards; they are not claimed as native window captures.
-- Launched the normal app with ~/Basement. Santi has already created one PRISM and one ENDO artboard there (Untitled and Untitled (2)); neither was modified by our QA. Temporary QA records are kept separate.
-- Santi's edited audit PSD remains an unstaged user change. ENDO and PhotoCraft source worktrees remain unchanged.
+Sitio por URL, launcher de desarrollo en pestaña normal y una sola sesión activa. Sin instalación ni caché offline. Actualizaciones únicamente desde el hub y sin operaciones o ventanas pendientes.
 
-## Phase 4 scope and limitations
+Se retiraron releases históricas, prototipos, launchers reemplazados, empaquetado de escritorio y recursos sin dependencias activas. Documentación útil reunida en docs/. Se mantienen pruebas, dependencias de motores y avisos/licencias de terceros. Los modelos de Contour son necesarios y continúan en dist/contour/.
 
-- The shell/document lifecycle is real; editing engines are not connected yet. Phase 5 connects ENDO, Phase 6 connects PRISM. Current work PNGs are initially empty backgrounds; rail/brush/property placeholders do not claim engine functionality.
-- Native PNG export is implemented; JPEG/project formats are engine-integration work.
-- Finder opening is constrained to the configured artboard root; change root in Preferences when moving a collection.
-- Cooper BT is a local licensed font, not redistributed. Exact title rendering on another Mac requires that font installed.
-- New-artboard dimensions are bounded to 128–8192 px and 24 megapixels; 1–1200 ppi.
+Pruebas: motores y formatos en tests/*.test.mjs; almacenamiento, uso de espacio y ZIP; flujos integrados de hub/Studios en Chrome aislado. No usar la biblioteca real para QA. Regenerar el índice de versiones después de cualquier edición de dist/.
 
-## Phase 3 results
-
-- Built original PhotoCraft web app with local Trunk 0.21.14, including upstream HEIF feature. Build wall time 253.69 s; generated WASM 25,063,798 bytes (23.90 MiB).
-- Created shell/spike: Tauri 2.12.3, plain HTML/JS, native file commands and original WASM editor in a frame. Both source submodules remain unmodified.
-- Local tauri://localhost context is secure and returned a WebGPU adapter on this Mac. Engine logs confirm BrowserWebGpu, with real UI captured from its canvas.
-- Initial WebGPU readiness: 1.134 s. Brief 180-sample rAF cadence: mean 16.67 ms, p95 18 ms; not an engine FPS or large-document benchmark.
-- Native shell read a PSD, delivered bytes to the original editor, intercepted an encoded download and saved 92,971 bytes to disk. One measured save took 116 ms. Reopening that export produced the same PNG as native rendering of the same input revision.
-- Preserved Santi's edits to docs/audit/evidence/prism-test.psd; it remains an unstaged user change. Tests use a frozen copy in .audit-runtime/spike/input.psd and never overwrite the source.
-- Forced WebGL2 initialized backend Gl and imported the test PSD. Full visual/save behavior remains partial: canvas capture was black and repeated automated shortcuts did not confirm export. Do not claim a fully supported fallback.
-- Native comparison: CLI PSD reencode 64–107 ms over three runs; a separate-session layer command plus inspection took about 125 ms. These are not apples-to-apples UI benchmarks.
-- Added executable scripts/build-spike.command and scripts/run-spike.command, tested the full build script and packaged a debug macOS .app (~37.70 MiB).
-- Tested the packaged app and opened the normal preview using the launcher. The bundle can find this checkout without a path environment variable, but must remain inside the project.
-- Added docs/decisions/0001-architecture.md in Spanish with context, evidence, options, preliminary implementation estimates and proposed Tauri/WASM architecture.
-- LICENSE, NOTICE and asset attribution copied into the preview resources. No permanent Studio UI, home, artboard storage or vendor patches were implemented.
-
-## Phase 3 findings / limits
-
-- Recommendation approved: Tauri + ENDO web + PRISM WASM, provisional egui UI, then progressive HTML panels starting with Layers.
-- Original web loader only exports initialization; native TCP/MCP do not exist inside WASM. Shared-session HTML panels need a typed command/state bridge, not a disconnected CLI session.
-- DOM/keyboard/file-picker interception is a spike adapter. The first real save passed, but repeated automated shortcuts are unreliable; reports distinguish readiness from exportConfirmed. A stable host bridge is required before production artboard claims.
-- macOS window screencapture failed; evidence is the editor's own WebGPU canvas, not a composed or fabricated screenshot. GL canvas capture did not prove visual behavior.
-- Native picker is wired but still needs Santi's manual trial. Preview file limit is 32 MiB; output is .audit-runtime/spike/exports. CSP is disabled for the local prototype.
-- No broad memory/tablet/large-document/GPU-loss tests. No architecture approval inferred from completing the spike.
-- rustfmt is not installed in the minimal Rust toolchain; no formatter check ran. Rust compilation, packaging, JS syntax and shell syntax checks passed.
-
-## Phase 2 results
-
-- Written docs/audit/endo.md and docs/audit/prism.md, with screenshots, test projects and JSON evidence in docs/audit/evidence.
-- ENDO ran in an isolated Chrome profile. Painting, undo/redo, JSON project roundtrip, PNG/JPEG encoding and IndexedDB recovery passed. The roundtrip PNG stayed byte-identical; all 26 brush renderers produced pixels without uncaught exceptions in the tested scenario.
-- ENDO has 16 visible library brushes plus Fusion, nine preserved legacy renderers, four shared graphic effects, and Canvas 2D material shading. No separate 3D mode found. Existing shortcuts and actual rail inventory documented.
-- PhotoCraft native release and CLI built successfully in 254.40 seconds. App binary 59,935,872 bytes; CLI 39,028,784 bytes.
-- Native PhotoCraft ran on Apple M2 Pro / Metal. 33 primary and 11 additional operations passed, exercising painting, layers, masks, selections, transformations, crop, adjustments, filters, basic text, groups and file I/O.
-- PSD and native .pcraft test projects retained layers/masks/type/adjustments. PNG exports before and after both roundtrips were byte-identical. No external Photoshop validation was performed.
-- Verified CLI info and 884 runtime engine commands, authenticated JSON control channel, MCP initialize/tools-list (25 tools), and the 18 proposed PRISM tool selectors.
-- Rust wasm32 target installed. PhotoCraft web target passed cargo check in 294.32 seconds; browser/WASM artifact, WebView behavior and disk integration remain Phase 3 work.
-- Added executable scripts/run-endo.command and scripts/run-prism.command. Ran both launchers: ENDO opens in the browser, PhotoCraft opens the test PSD natively using an isolated config folder.
-- Both engine submodule worktrees remain unchanged. No other Studio was audited or built.
-
-## Phase 2 limits and issues
-
-- Upstream PhotoCraft remains alpha; complex PSD compatibility, typography and performance need further validation. Our small self-roundtrip does not prove Photoshop compatibility.
-- External block crate emits a future-Rust compatibility warning; build succeeded.
-- The initial audit harness used an incorrect export return shape and Levels parameters; corrected against the source/registry, then the final scenarios passed.
-- Browser/native interfaces shown are the original engines; BASEMENT's supplied design has not yet been implemented.
-- Automated tests do not cover every effect/tool, large projects, tablet hardware or native save-dialog interaction.
-- Existing ENDO autosave is one pathname-keyed browser workspace, not .artboard disk storage.
-
-## Phase 1 results
-
-- Private repository: https://github.com/santiagobarbieri/basement.
-- Created only the requested fork: https://github.com/santiagobarbieri/photocraft.
-- ENDO full-history submodule: studios/endo, from santiagobarbieri/endo_testing.
-- ENDO pinned commit: cf7f971a3eabce9013fa1c1082df2c32d4111b89. Source has one commit; no shallow clone was used.
-- ENDO local integration branch: basement-integration. Original repository unchanged.
-- PhotoCraft submodule: vendor/photocraft, commit 20cb95bc272feb9691537bccb46e84e583f5a04a (1,618 commits).
-- PhotoCraft upstream: https://github.com/storytold/photocraft.git.
-- PhotoCraft endo-integration branch pushed to fork; main and integration branch match upstream/main at setup time. No engine code changes.
-- PhotoCraft licenses, NOTICE, and attribution files retained intact.
-- Created shell, assets, documentation, and scripts structure; empty folders use .gitkeep.
-- Preserved home and ENDO PNG references in assets/design.
-- Added README, ignore rules, and scripts/setup-sources.sh to restore sources and integration branches.
-- Initialized main; setup work on phase-1-setup. Set repository-local GitHub noreply email because global author email was invalid; global configuration unchanged.
-
-## Validation
-
-- Setup scripts pass zsh syntax checks; scripts/setup-sources.sh ran successfully.
-- Both submodules have clean worktrees and full histories.
-- Git diffs confirm ENDO matches original main and PhotoCraft matches upstream/main.
-- GitHub confirms BASEMENT is private.
-- GitHub confirms PhotoCraft is a fork of storytold/photocraft and ENDO's pinned commit matches the original repository.
-- Engine compilation and launch are Phase 2 audit work, not performed in this source setup phase.
-
-## Verified environment / Phase 0
-
-- macOS 26.6.2; Xcode Command Line Tools installed.
-- Git 2.39.5, Node 24.19.0, npm 11.17.0, Homebrew 7.0.9.
-- GitHub CLI 2.102.0; authenticated as santiagobarbieri.
-- Rust/Cargo 1.99.0, rustup 1.29.1, Tauri CLI 2.12.2.
-- scripts/check-environment.sh passed Rust compilation/linking/execution, Node execution, and authenticated GitHub API checks.
-- scripts/env.sh sets tool paths and GH_CONFIG_DIR to ~/Library/Application Support/BASEMENT/gh because ~/.config belongs to root. Credentials remain in macOS keyring.
-
-## Pending / limitations
-
-- Engine editing/undo is pending, while home, common shell and artboard lifecycle are implemented.
-- Do not audit or build QUILL, REEL, FOLIO, LUX, or MIRAGE.
-
-## Next
-
-1. Santi reviews the home/common chrome, creates and reopens an artboard from All, then approves or adjusts checkpoint 4.
-2. After approval: Phase 5 ENDO engine integration, preserving its existing tools, brushes/effects, project storage and exports.
-3. PRISM remains scheduled for Phase 6; no other Studio is authorized.
+Decisiones vigentes: docs/requirements-beta-2.md. Detalles de cada Studio: docs/studios/.
