@@ -18,6 +18,7 @@ function send() {
   if (!rect.width || !viewRect.width || !viewRect.height) return;
   pending = false; inFlight = true;
   worker.postMessage({ id: generation, strokes: state.strokes, scene: state.scene,
+    background: getComputedStyle(viewport).backgroundColor,
     view: { scale:camera.scale,x:camera.x,y:camera.y,
       width: viewport.clientWidth, height: viewport.clientHeight, dpr: window.devicePixelRatio || 1 } });
 }
@@ -46,3 +47,8 @@ artboard.addEventListener('pointerdown', () => {
 });
 document.addEventListener('endo-camera-change',invalidate);
 new ResizeObserver(invalidate).observe(viewport);
+// Discard any bitmap from the previous theme before showing its replacement.
+// The paper is presentation only; the editable/exported Artboard stays transparent.
+new MutationObserver(invalidate).observe(document.documentElement, {
+  attributes: true, attributeFilter: ['data-theme']
+});

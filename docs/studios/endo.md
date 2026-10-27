@@ -10,6 +10,8 @@ El inspector distingue ajustes para el próximo trazo, selección y superficie g
 ## Lienzo y navegación
 Lienzo amplio con coordenadas negativas y positivas. Mano, Espacio + arrastre o botón central para desplazar; rueda/touchpad desplazan; pinza/Ctrl + rueda y botones controlan zoom. Render inmediato en viewport y refinamiento acotado en worker.
 
+Ambas vistas usan el fondo del tema actual. Cambiar de tema invalida los bitmaps anteriores; al empezar y terminar un trazo no se alterna entre papel oscuro y gris claro. Ese fondo es solo de presentación y no se incluye en PNG ni en los datos del Artboard.
+
 ## Selección múltiple
 Modo selección: clic reemplaza la selección; Shift + clic agrega o quita. ⌘A/Ctrl+A selecciona todos los trazos; Escape limpia. Ancho, propiedades de pincel, colores y presets se aplican al grupo; ajustes globales siguen compartidos. Valores numéricos diferentes muestran —. Delete borra el grupo; Undo/Redo y ⌘Z/Ctrl+Z, con Shift para rehacer, controlan el historial.
 

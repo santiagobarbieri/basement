@@ -170,6 +170,45 @@ try{
   assert.equal(await run("document.querySelector('#export-menu').hidden&&document.querySelector('#export').getAttribute('aria-expanded')==='false'"),true);
   console.log('PASS keyboard-accessible Export creates a portable .ment and a valid painted, transparent PNG');
 
+  // Drawing switches from the immediate canvas to a worker-refined bitmap.
+  // At 10% zoom (the reported case), both must composite onto the same paper.
+  const backgroundContent=await content();
+  const backgroundView=await run('({...window.basementStudioSession.capture().state.view})');
+  const refinedBackground=()=>run(`(()=>{const viewport=document.querySelector('#canvas-viewport'),refined=document.querySelector('#resolution-view'),base=document.querySelector('#artboard');return{css:getComputedStyle(viewport).backgroundColor.match(/\\d+/g).slice(0,3).map(Number),pixel:[...refined.getContext('2d').getImageData(2,2,1,1).data],baseAlpha:base.getContext('2d').getImageData(2,2,1,1).data[3],opacity:Number(getComputedStyle(refined).opacity)};})()`);
+  await run("window.testRefinements=0,document.querySelector('#resolution-view').addEventListener('endo-refined',()=>window.testRefinements++)");
+  await run("(await import('/zoom.js')).restoreCamera({scale:.1,x:50,y:50})");
+  for(const theme of ['dark','light']){
+   if(await run('document.documentElement.dataset.theme')!==theme){
+    const before=await run('window.testRefinements');
+    await click('#endo-theme-toggle');
+    await wait(`window.testRefinements>${before}&&getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'`);
+   }
+   await wait("getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'");
+   let background=await refinedBackground();
+   assert.deepEqual(background.pixel,[...background.css,255],theme+' refined paper matches the immediate canvas background');
+   assert.equal(background.baseAlpha,0,'Unpainted source pixels remain transparent');
+   await click('[data-mode=draw]');await key('Escape');
+   const start=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x+r.width*.7,y:r.y+r.height*.8};})()");
+   await pointer('mousePressed',start,1);
+   await pointer('mouseMoved',{x:start.x+35,y:start.y+15},1);
+   background=await refinedBackground();
+   assert.equal(background.opacity,0,theme+' uses the immediate canvas during the stroke');
+   assert.equal(background.baseAlpha,0,'Drawing never paints the paper into source pixels');
+   const during=background.css;
+   await pointer('mouseReleased',{x:start.x+35,y:start.y+15},0);
+   await wait("getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'");
+   background=await refinedBackground();
+   assert.deepEqual(background.pixel,[...during,255],theme+' keeps exactly the same paper after releasing the stroke at 10% zoom');
+   await click('#return');
+   assert.equal(await content(),backgroundContent,'Background regression gestures are fully undone');
+  }
+  await click('#endo-theme-toggle');
+  await run(`(await import('/zoom.js')).restoreCamera(${JSON.stringify(backgroundView)})`);
+  await wait("getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'");
+  const restoredBackground=await refinedBackground();
+  assert.deepEqual(restoredBackground.pixel,[...restoredBackground.css,255],'Theme switch discards the old refined paper');
+  console.log('PASS immediate and refined paper match during and after drawing at 10% zoom in both themes; source pixels stay transparent');
+
   const auditLayout=async label=>{
    const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,rail:rect(document.querySelector('.tool-rail')),canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
    assert.ok(layout.bodyWidth<=layout.width+1&&layout.htmlWidth<=layout.width+1,label+' has no horizontal page overflow: '+JSON.stringify(layout));

@@ -1,6 +1,6 @@
 import { ChromeSurface, rebuild } from './engine.js';
 self.onmessage = async ({ data }) => {
-  const { id, strokes, scene, view } = data;
+  const { id, strokes, scene, view, background } = data;
   try {
     let resolution = Math.max(.1, view.scale * Math.min(view.dpr, 2));
     const compute = () => {
@@ -22,9 +22,9 @@ self.onmessage = async ({ data }) => {
     });
     rebuild(surface, strokes, scene);
     surface.render(scene, strokes.map(stroke => stroke.settings));
-    // An opaque paper background covers the old low-resolution stroke underneath.
+    // Match the live canvas paper, covering the old stroke without double alpha.
     surface.ctx.globalCompositeOperation = 'destination-over';
-    surface.ctx.fillStyle = '#d9d9d9';
+    surface.ctx.fillStyle = background;
     surface.ctx.fillRect(0,0,canvas.width,canvas.height);
     const bitmap = await createImageBitmap(canvas, pad, pad, width, height);
     self.postMessage({ id, bitmap, resolution, samples: canvas.width * canvas.height }, [bitmap]);
