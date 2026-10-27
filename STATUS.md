@@ -1,6 +1,6 @@
 # Basement Beta 2.0 — estado actual
 
-27 Oct 2026. Desarrollo local; publicación en GitHub/Vercel pendiente de la revisión del usuario.
+27 Oct 2026. Beta 2.0 publicada en https://basement-two-gamma.vercel.app/. Código en https://github.com/santiagobarbieri/basement, rama main, con publicación automática en Vercel. Historial anterior conservado; etiqueta desktop-before-beta-2-2026-10-27.
 
 Hub con siete Studios: Endo, Kiln, Tremor, Foundry, Contour, Marble y Distortion. Biblioteca de Artboards con grilla/lista, búsqueda, filtros, selección múltiple, creación en dos pasos, perfil local y temas. Export, Import y Trash están junto a Search en la barra superior, como en la última referencia. Studios / Apps, About y Contact permanecen en Coming soon.
 
@@ -15,3 +15,5 @@ Se retiraron releases históricas, prototipos, launchers reemplazados, empaqueta
 Pruebas: motores y formatos en tests/*.test.mjs; almacenamiento, uso de espacio y ZIP; flujos integrados de hub/Studios en Chrome aislado. No usar la biblioteca real para QA. Regenerar el índice de versiones después de cualquier edición de dist/.
 
 Decisiones vigentes: docs/requirements-beta-2.md. Detalles de cada Studio: docs/studios/.
+
+Publicación verificada sobre HTTPS: ocho rutas públicas, tipos MIME de modelos/WASM, headers de actualización, BUILD idéntico a la versión revisada y validación completa de recursos. Chrome aislado comprobó la API segura de carpeta, apertura de Endo, guardado manual y regreso al hub con OPFS temporal; no se usó la biblioteca real.

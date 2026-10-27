@@ -6,7 +6,7 @@ Confirmed by Santiago on 26 October 2026. The nine supplied hub references defin
 
 1. First remove the desktop/installable PWA behavior, retaining folder saving. Then replace the entire hub. Existing Studio visual designs remain intact; their common Home navigation and persistence may be integrated.
 2. Basement is a public website entered by URL. Retain `Abrir BASEMENT.command` only for local development at `http://127.0.0.1:8000`. Remove the installed Basement wrapper from this computer without deleting browser or library data.
-3. Complete and refine the local redesign before GitHub or Vercel publication. A later public GitHub repository should be named `Basement`; the user has a Vercel account. Do not publish during this work.
+3. Complete and refine the local redesign before publication. On 27 October 2026 Santiago approved publishing and updating the existing public `santiagobarbieri/basement` repository while preserving its history. Production is https://basement-two-gamma.vercel.app/, automatically deployed from main to the Vercel basement project.
 4. The release label is **Beta 2.0**. No legacy project migration or format compatibility work is required, but do not delete the user's data.
 5. A connection is required to load the website; no offline PWA. If connection drops with an Artboard already open, editing and saving to the chosen folder remain available with a connection notice.
 6. Updates are detected and applied from the hub. Apply only with no Studio open, no pending save and no other Basement window. Never force a Studio reload.

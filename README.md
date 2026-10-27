@@ -1,5 +1,9 @@
 # Basement Beta 2.0
 
+**Sitio público:** https://basement-two-gamma.vercel.app/
+
+**Repositorio:** https://github.com/santiagobarbieri/basement
+
 Sitio estático de herramientas creativas para Google Chrome. Desarrollo local sin framework ni instalación: abrir **Abrir BASEMENT.command**. El launcher inicia el servidor y abre una pestaña normal en `http://127.0.0.1:8000/hub/`.
 
 Conservar ese origen y la base IndexedDB `basement-projects`. Para comprobar el servidor: `python3 scripts/launch.py --status`. Solo se sirve `dist/`; el launcher avisa si el puerto 8000 está ocupado por otro servidor.
@@ -68,3 +72,11 @@ node tests/studio-browser.mjs
 ```
 
 Las pruebas de Chrome usan un perfil y una biblioteca OPFS temporales, con servidor aislado. Nunca acceden a la biblioteca real. La ejecución local de Chrome requiere permiso fuera del sandbox. El nombre histórico `pwa-browser.mjs` se conserva para la prueba del sitio online y sus actualizaciones.
+
+## Publicación
+
+El proyecto Vercel `basement` está conectado a `main` de GitHub. Cada push publica automáticamente con `vercel.json`: sin framework, build `node scripts/gen-precache.mjs` y salida `dist/`. Las rutas de los Studios se sirven sin reescritura SPA.
+
+La configuración local de Vercel y las credenciales de GitHub no se versionan. El historial de la app anterior permanece en Git; la etiqueta `desktop-before-beta-2-2026-10-27` señala el último commit de escritorio.
+
+El sitio público tiene su propio permiso de carpeta, separado del origen local. Al entrar por primera vez, elegir la carpeta de Artboards existente permite abrir los mismos `.ment`.
