@@ -45,10 +45,11 @@ try{
  await wait("document.querySelector('#local-status')?.textContent.startsWith('Saved in ')&&!!window.basementStudioSession");
  const state=()=>run('window.basementStudioSession.capture().state');
  const signature=()=>run("(await import('/ment-format.js')).documentSignature(window.basementStudioSession.capture().state)");
- const settle=async()=>{await run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await wait("getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'");};
+ const settle=async()=>{await run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await wait("!!document.querySelector('#artboard').dataset.frameQuality");};
  const field=async(selector,value,event='input')=>run(`(()=>{const field=document.querySelector(${JSON.stringify(selector)});field.focus();field.value=${JSON.stringify(String(value))};field.dispatchEvent(new Event(${JSON.stringify(event)},{bubbles:true}));${event==='input'?"field.dispatchEvent(new Event('change',{bubbles:true}));":''}field.blur();})()`);
  const shortcut=async(letter)=>{await run("document.querySelector('#artboard').focus()");for(const type of ['rawKeyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:letter,code:'Key'+letter.toUpperCase(),windowsVirtualKeyCode:letter.toUpperCase().charCodeAt(0),modifiers:4});};
  const drag=async(a,b,steps=15)=>{await pointer('mousePressed',a,1);for(let i=1;i<=steps;i++){await pointer('mouseMoved',{x:a.x+(b.x-a.x)*i/steps,y:a.y+(b.y-a.y)*i/steps},1);await delay(8);}await pointer('mouseReleased',b,0);await settle();};
+ await click('#zoom-fit');
  const view=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height};})()");
  const lineA={x:view.x+view.w*.28,y:view.y+view.h*.37},lineB={x:view.x+view.w*.64,y:lineA.y};
  const center={x:(lineA.x+lineB.x)/2,y:lineA.y};
@@ -118,7 +119,7 @@ try{
  const beforeCopy=(await state()).strokes.length;
  await shortcut('c');assert.equal(await run("document.querySelector('#paste-selection').disabled"),false);
  await shortcut('v');await settle();assert.equal((await state()).strokes.length,beforeCopy+2);
- assert.ok((await state()).strokes.slice(-2).every(stroke=>stroke.layerId===top));
+ assert.ok((await state()).strokes.slice(-2).every(stroke=>stroke.operation==='paint'));assert.equal(new Set((await state()).strokes.map(stroke=>stroke.number)).size,(await state()).strokes.length,'Copied strokes receive unique identifiers');
  await click('#return');await settle();assert.equal((await state()).strokes.length,beforeCopy);
  await shortcut('j');await settle();assert.equal((await state()).strokes.length,beforeCopy+2);
  await click('#return');await settle();assert.equal((await state()).strokes.length,beforeCopy);
@@ -143,58 +144,26 @@ try{
  await click('#return');assert.deepEqual((await state()).defaults,unlinked,'A manual Shadow edit is one independent undo step');
  console.log('PASS Base/Light/Shadow explanations, exact HEX, invalid input, linked tones and independent color history');
 
- // Repetition regions are chosen in document coordinates and stay editable.
- await inspect('symmetry');await key('r');assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),'repeat-region');
- const regionA={x:view.x+view.w*.17,y:view.y+view.h*.55},regionB={x:regionA.x+260,y:regionA.y+180};
- await drag(regionA,regionB);let region=(await state()).tool.region;assert.ok(region.width>100&&region.height>100);
- const firstRegion={...region};await key('r');await drag({x:regionA.x+90,y:regionA.y+70},{x:regionA.x+115,y:regionA.y+85});
- region=(await state()).tool.region;assert.ok(Math.abs(region.x-firstRegion.x-25/(await state()).view.scale)<.1);assert.equal(region.width,firstRegion.width);
- await field('#repeat-x',125,'change');await field('#repeat-y',420,'change');await field('#repeat-width',300,'change');await field('#repeat-height',180,'change');
- assert.deepEqual((await state()).tool.region,{x:125,y:420,width:300,height:180});
- await click('[data-tool=mirror]');await field('#tool-axes','vertical','change');
- await capture('repeat');
- const drawingView=(await state()).view;
- const worldPoint=(x,y)=>({x:view.x+drawingView.x+x*drawingView.scale,y:view.y+drawingView.y+y*drawingView.scale});
- const repeatCount=(await state()).strokes.length;await click('[data-mode=draw]');await key('Escape');await drag(worldPoint(165,455),worldPoint(190,495));
- assert.equal((await state()).strokes.length,repeatCount+1);const repeated=(await state()).strokes.at(-1);assert.equal(repeated.tool.mode,'mirror');assert.deepEqual(repeated.tool.region,{x:125,y:420,width:300,height:180});
- const sample=await pixel(worldPoint(165,455)),mirrorSample=await pixel(worldPoint(385,455));assert.ok(sample[3]>0&&mirrorSample[3]>0,'Mirrored stroke appears inside the chosen off-center region');
- assert.equal((await pixel(worldPoint(120,455)))[3],0,'Repetition never paints beyond its region');
- await field('#repeat-x',500,'change');assert.equal((await state()).strokes.at(-1).tool.region.x,125,'Editing the next region leaves existing artwork unchanged');
- await click('[data-tool=mirror]');
- console.log('PASS R draws and moves repetition regions; numeric edits place off-center mirror copies and preserve existing strokes');
-
- // Filters visibly change just the active layer and remain editable after saving.
- await selectLayer(top);await inspect('filters');
- await field('#filter-type','threshold','change');await click('#add-filter');await settle();
- let filters=(await state()).layers.find(layer=>layer.id===top).filters;const threshold=filters[0].id;
- await field(`[data-filter-id="${threshold}"] input[type=range]`,255);await settle();assert.deepEqual((await pixel(center)).slice(0,3),[0,0,0]);
- await click(`[data-filter-id="${threshold}"] input[type=checkbox]`);await settle();assert.deepEqual(await pixel(center),topPixel);
- await field('#filter-type','dither','change');await click('#add-filter');await settle();
- filters=(await state()).layers.find(layer=>layer.id===top).filters;const dither=filters[1].id;
- await field(`[data-filter-id="${dither}"] input[aria-label="Dither pattern size"]`,3);await settle();
- const pattern=await run(`(()=>{const canvas=document.querySelector('#artboard'),r=canvas.getBoundingClientRect(),data=canvas.getContext('2d').getImageData(Math.round(${center.x}-r.x)-15,Math.round(${center.y}-r.y)-10,30,20).data;const colors=new Set();for(let i=0;i<data.length;i+=4)if(data[i+3]===255)colors.add([data[i],data[i+1],data[i+2]].join(','));return [...colors];})()`);
- assert.ok(pattern.includes('0,0,0')&&pattern.includes('255,255,255'),'Dither creates both black and white pattern cells');
- await field('#filter-type','invert','change');await click('#add-filter');await settle();assert.equal((await state()).layers.find(layer=>layer.id===top).filters.length,3);
- await click('#filter-list button[aria-label="Remove Invert"]');await settle();assert.equal((await state()).layers.find(layer=>layer.id===top).filters.length,2);
- await click(`[data-filter-id="${dither}"] input[type=checkbox]`);await settle();assert.deepEqual(await pixel(center),topPixel);
- await click(`[data-filter-id="${dither}"] input[type=checkbox]`);await settle();
- await click('[data-mode=erase]');await drag({x:farA.x+35,y:farA.y-25},{x:farA.x+35,y:farA.y+25});
+ // Keep an editable eraser gesture in the final document; frame/adjustment
+ // composition has its own focused browser test.
+ await selectLayer(top);await click('[data-mode=erase]');
+ await drag({x:center.x,y:center.y-45},{x:center.x,y:center.y+45});
  assert.equal((await state()).strokes.at(-1).operation,'erase');
- await inspect('filters');await capture('filters');
+ await inspect('color');await capture('color');
  const finalSignature=await signature(),finalState=await state();await click('.folder-studio-tools [data-studio-save]');await wait('!window.basementStudioSession.dirty()');
  assert.equal(await run("(await import('/ment-format.js')).documentSignature((await(await import('/project-store.js')).getProject('endo-editing-test')).state)"),finalSignature);
  await run(`(()=>{Object.defineProperty(window,'showSaveFilePicker',{value:undefined,configurable:true});window.testDownloads=[];const original=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download){window.testDownloads.push({name:this.download,url:this.href});return;}return original.call(this);};})()`);
  await click('#export');await click('#export-ment');await wait('window.testDownloads.length===1');
  const ment=await run("fetch(window.testDownloads[0].url).then(r=>r.json())");
- assert.equal(ment.artboard.layers.length,2);assert.deepEqual(ment.artboard.layers.find(layer=>layer.id===top).filters,finalState.layers.find(layer=>layer.id===top).filters);
- assert.ok(ment.artboard.layers.flatMap(layer=>layer.strokes).some(stroke=>stroke.tool.region));
+ assert.equal(ment.version,2);assert.equal(ment.artboard.settings.frameVersion,1);assert.deepEqual(ment.artboard.settings.frames,finalState.frames);assert.equal(ment.artboard.layers.length,finalState.layers.length);
+ assert.ok(ment.artboard.layers.every(layer=>layer.frameId===finalState.activeFrameId));
  assert.ok(ment.artboard.layers.flatMap(layer=>layer.strokes).some(stroke=>stroke.operation==='erase'),'Portable .ment keeps the editable eraser gesture');
  await click('.main-page-link');await wait("location.pathname==='/hub/'&&!!document.querySelector('#project-list')");
  await page.send('Page.navigate',{url:origin+'/?project=endo-editing-test'});await wait("document.querySelector('#local-status')?.textContent.startsWith('Saved in ')");await settle();
- assert.equal(await signature(),finalSignature,'Reopening preserves every layer, filter, color and repetition region');
+ assert.equal(await signature(),finalSignature,'Reopening preserves the legacy frame, layers, colors and editable erasing');
  assert.deepEqual((await state()).strokes.map(stroke=>stroke.points),finalState.strokes.map(stroke=>stroke.points));
  assert.deepEqual(nativeDialogs,[],'Editing, saving and reopening never show a browser leave prompt');
- console.log('PASS Threshold/Dither adjust, toggle and remove visually; Save, portable .ment and reopen retain complete editable state');
+ console.log('PASS v1 legacy content saves as a portable v2 frame document and reopens with layers, colors and erasing intact');
  console.log('PASS Endo editing tools and persistence in isolated Chrome/OPFS');
 }finally{
  page?.close();if(browser){await browser.send('Browser.close').catch(()=>{});browser.close();}chrome.kill();await new Promise(r=>server.close(r));await delay(500);await rm(temp,{recursive:true,force:true,maxRetries:3});

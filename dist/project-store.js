@@ -164,7 +164,7 @@ export function resumeState(project){const copy=structuredClone(project.state);c
 export function importMent(text){
  const doc=JSON.parse(text),a=doc?.artboard;
  if(typeof a?.name!=='string'||!a.name.trim()||a.name.trim().length>80)throw Error('Invalid Artboard name.');
- if(doc.format!=='basement.ment'||doc.version!==1||!a||!['endo','kiln','tremor','contour','foundry','distortion','marble'].includes(a.studio)||!Array.isArray(a.layers))throw Error('This is not a compatible .ment file.');
+ if(doc.format!=='basement.ment'||!(doc.version===1||(doc.version===2&&a?.studio==='endo'))||!a||!['endo','kiln','tremor','contour','foundry','distortion','marble'].includes(a.studio)||!Array.isArray(a.layers))throw Error('This is not a compatible .ment file.');
  let state;
  if(a.studio==='marble'){state=validateMarble(a.settings);
  }else if(a.studio==='distortion'){state=validateDistortion(a.settings);
@@ -183,17 +183,18 @@ export function importMent(text){
   state={...settings,...options,source,uploads:a.assets?.tiles||[],tool:units?.type.split('.')[1]||settings.tool||'characters',output:!!units,selectedLayer:'output'};
   if(!['characters','tiles','cells'].includes(state.tool)||!state.shared||!state.characters||!state.tiles||!state.cells||!state.colors)throw Error('Missing Kiln settings.');
  }else if(a.studio==='endo'){
-  if(!a.layers.length||a.layers.length>64)throw Error('The Artboard layers are invalid.');
+  if(!a.layers.length||a.layers.length>1024)throw Error('The Artboard layers are invalid.');
   const layers=[],strokes=[];
   for(const layer of a.layers){
-   if(!layer||typeof layer!=='object'||!Array.isArray(layer.strokes)||!['endo.cromo','endo.surface'].includes(layer.type))throw Error('The Artboard contains an invalid Endo layer.');
-   const {strokes:source,type,...metadata}=layer;layers.push(metadata);
+   if(!layer||typeof layer!=='object'||!Array.isArray(layer.strokes)||!['endo.cromo','endo.surface','endo.adjustment'].includes(layer.type))throw Error('The Artboard contains an invalid Endo layer.');
+   const {strokes:source,type,...metadata}=layer;if(type==='endo.adjustment'){if(source.length)throw Error('An adjustment layer cannot contain strokes.');metadata.kind='adjustment';}layers.push(metadata);
    for(const stroke of source){
     if(stroke.layerId!==undefined&&stroke.layerId!==layer.id)throw Error('A stroke references an invalid layer.');
     strokes.push({...stroke,layerId:layer.id});
    }
   }
   const {strokeOrder,...config}=a.settings||{};
+  if(doc.version===2&&config.frameVersion!==1)throw Error('The Endo frame format is invalid.');
   if(strokeOrder!==undefined){
    const byNumber=new Map(strokes.map(stroke=>[stroke.number,stroke]));
    if(!Array.isArray(strokeOrder)||strokeOrder.length!==strokes.length||new Set(strokeOrder).size!==strokes.length||strokeOrder.some(number=>!byNumber.has(number)))throw Error('The stroke order is invalid.');

@@ -1,43 +1,47 @@
 # Endo — estado actual, 27 Oct 2026
 
-## Interfaz
-Editor con la identidad del hub. Cabecera compacta con Home, nombre editable del Artboard, estado de guardado, Save, Folder y Export. Tema claro/oscuro compartido con Basement; cambiarlo no modifica los píxeles del Artboard ni el fondo transparente del PNG.
+## Espacio de trabajo
 
-Barra rápida de 48 px a la izquierda: pincel (B), borrador (E), selección/movimiento (V), selección rectangular (M), mano (H), área de exportación (F), repetición y colores. El lienzo ocupa el centro; arriba muestra contexto, historial y copiar/pegar/duplicar, y abajo el zoom. El inspector derecho reúne Brush, Color, Repeat, Filters y Areas en pestañas accesibles por teclado, conservando el desplazamiento de cada grupo. Layers permanece visible debajo del inspector. La vista previa compacta está en Brush; Surface & lighting es desplegable.
+Un Artboard contiene frames independientes sobre una página de navegación. Se dibuja dentro de un frame; la página no es una superficie exportable. Cada frame tiene nombre, posición, tamaño, fondo opcional y su propia pila de capas. Sus dimensiones son de 64 a 2048 px por lado, con un máximo de 32 frames por Artboard. El tamaño no depende de la ventana ni cambia al redimensionar el navegador.
 
-El inspector distingue ajustes para el próximo trazo, selección y superficie global. Los atajos de herramientas no interceptan campos de texto ni diálogos; Espacio permite desplazar temporalmente después de usar la barra rápida.
+F activa la creación de frames por arrastre. También permite mover el frame activo desde su interior o redimensionarlo desde las esquinas. Frames ofrece nombre, X/Y, Width/Height, fondo transparente o color, duplicado, eliminación y foco. El selector junto a Layers cambia de frame rápidamente. Mover un frame transporta sus trazos y regiones; redimensionarlo recorta el contenido, sin escalar los gestos. No se borra el contenido que queda fuera del encuadre.
 
-## Lienzo y navegación
-Lienzo amplio con coordenadas negativas y positivas. Mano, Espacio + arrastre o botón central para desplazar; rueda/touchpad desplazan; pinza/Ctrl + rueda y botones controlan zoom. Render inmediato en viewport y refinamiento acotado en worker.
+## Herramientas y selección
 
-Ambas vistas usan el fondo del tema actual. Cambiar de tema invalida los bitmaps anteriores; al empezar y terminar un trazo no se alterna entre papel oscuro y gris claro. Ese fondo es solo de presentación y no se incluye en PNG ni en los datos del Artboard.
+Barra izquierda: pincel B, borrador E, selección/movimiento V, selección rectangular M, mano H y frames F. R abre Repeat. Espacio permite desplazar temporalmente; rueda/touchpad desplazan, pinza/Ctrl + rueda y botones controlan zoom. Fit encuadra el frame activo dejando margen de página alrededor.
 
-## Repetición localizada
-Repeat permite dibujar un área con R, moverla desde su interior y redimensionarla desde las esquinas. También se puede usar la vista actual o la selección, o ajustar X/Y/Width/Height. Mandala, Mirror, Grid y Mosaic usan el centro, ejes y celdas de esa región y quedan recortados a ella. Un trazo debe comenzar dentro de la región. Los trazos terminados conservan su región aunque cambie la de los siguientes; los anteriores sin región mantienen su geometría original.
+Cada trazo nuevo tiene su propia capa, de modo que se puedan insertar ajustes entre los trazos. Los grupos de trazos de archivos anteriores conservan sus capas originales. Selección por clic o rectángulo, Shift agrega o quita; Ctrl/⌘A selecciona contenido editable del frame activo y Escape limpia. Arrastrar la selección mueve su contenido; flechas desplazan 1 unidad y Shift + flecha 10. Copiar/pegar y duplicar están en la barra y en Ctrl/⌘C, V y J. Delete elimina la selección; Undo/Redo conserva los gestos editables.
 
-## Selección, copia y borrado
-V selecciona por clic y mueve los trazos por arrastre; un arrastre en espacio vacío selecciona un grupo. M fuerza selección rectangular; Shift agrega o quita. ⌘A/Ctrl+A selecciona todos los trazos visibles y desbloqueados; Escape limpia. Flechas desplazan 1 unidad, Shift + flecha 10. ⌘C/⌘V copian y pegan dentro del Artboard, ⌘J duplica; los mismos atajos funcionan con Ctrl. La barra también expone estas acciones. Delete elimina el grupo.
+El borrador es parcial y solo afecta a la capa de dibujo activa. Draw y Eraser limpian la selección; dibujar no selecciona automáticamente el último trazo. Cambiar color o material afecta a próximos trazos hasta seleccionar contenido explícitamente. Los ajustes globales de superficie siguen compartidos.
 
-E borra parcialmente la capa activa, dejando intactas las inferiores. Cada gesto de borrado permanece editable en el documento y Undo lo restaura. Draw y Eraser limpian la selección; dibujar no selecciona automáticamente el último trazo. Ancho, propiedades, colores y presets afectan a los próximos trazos hasta seleccionar contenido explícitamente. Los ajustes globales siguen compartidos y los valores numéricos distintos muestran —. Undo/Redo y ⌘Z/Ctrl+Z, con Shift para rehacer, controlan el historial.
+## Repetición
 
-## Capas y filtros
-Layers muestra las capas de arriba hacia abajo, con nombre, cantidad de trazos/filtros, visibilidad, bloqueo y opacidad. Se puede crear, duplicar, eliminar y ordenar con las flechas; doble clic en el nombre lo renombra. Selection to layer mueve los trazos elegidos a una capa nueva. No se dibuja sobre una capa oculta o bloqueada. La composición por orden y opacidad es real y coincide en el lienzo, el refinado y el PNG.
+Mandala, Mirror, Grid y Mosaic toman el centro y los bordes del frame activo. Ya no existe una segunda área de repetición independiente que haya que dibujar o mover. El render recorta pintura y borrado a los límites del frame, además de conservar la geometría de repetición de los trazos terminados.
 
-Filters aplica Threshold, Dither, Grayscale e Invert a la capa activa. La pila conserva los originales, permite ajustar parámetros y desactivar o quitar cada filtro, y mantiene el alfa. El patrón Dither está anclado a las coordenadas del documento para que no cambie al desplazar o ampliar la vista. Las capas ocultas o con opacidad cero liberan sus rasters de trabajo.
+## Capas de ajuste
+
+Layers muestra únicamente las capas del frame activo y permite ordenar por arrastre o flechas, ocultar, bloquear, renombrar, duplicar y cambiar opacidad. Las capas de dibujo y de ajuste aparecen en la misma pila. Una capa de ajuste modifica la composición que tiene debajo dentro de ese frame; moverla cambia qué trazos reciben el efecto y no afecta a otros frames.
+
+Threshold, Dither, Grayscale e Invert son capas de ajuste independientes. Añadir un efecto o pulsar su miniatura abre un panel flotante con parámetros en vivo, Preview y eliminación. Se puede mover el panel; Escape o un clic exterior lo cierra sin bloquear el lienzo. Los filtros conservan los gestos originales y la transparencia. Los filtros antiguos se migran a capas de ajuste recortadas a su capa de origen para conservar su apariencia; reordenarlas libera ese recorte y adopta el comportamiento normal de la pila.
 
 ## Colores
-Base color es el control principal; Light y Shadow explican los tonos de las caras iluminadas y oscuras del material. HEX, RGB y el selector visual editan el rol visible. Link light and shadow deriva ambos tonos al cambiar la base en una sola operación de historial; se puede desactivar para ajustar cada uno por separado. La preferencia del enlace se recuerda localmente. Los presets tienen nombre y muestra del material. Un HEX inválido muestra ayuda y no modifica el dibujo.
 
-## Marcos y PNG
-Export areas: Dibujar marco activa arrastre de un rectángulo; Desde selección crea un marco alrededor del grupo. Nombre editable, botón para centrarlo y controles X/Y/W/H para mover y cambiar tamaño. Quitar marco no borra trazos. Cambios con historial.
-PNG area elige todo el contenido, selección o marco por nombre. Dimensiones visibles antes de exportar; exportaciones superiores a 16 MP u 8192px por lado se bloquean antes de reservar imagen. PNG transparente a 2 píxeles por unidad lógica; los marcos no se pintan en la imagen. Archivos por marco: Proyecto — Marco.png.
+Base color es el control principal; Light y Shadow explican los tonos de las caras iluminadas y oscuras. HEX, RGB y el selector visual editan el rol visible. Link light and shadow deriva ambos tonos al cambiar la base en una sola operación de historial; se puede desactivar y la preferencia se recuerda localmente. Los presets tienen nombre y muestra. Un HEX inválido muestra ayuda sin modificar el dibujo.
 
-## Persistencia
-El guardado automático en la carpeta elegida y .ment conservan el proyecto completo, capas, orden, bloqueos, opacidad, filtros, borrados, regiones de repetición, marcos y vista de la última edición. Los .ment anteriores se abren como una capa sin modificar sus trazos ni identificadores. Selección y objetivo de exportación no recortan el archivo editable. El fondo del tema sigue siendo de presentación.
+## Calidad y exportación
+
+El frame activo usa una resolución de edición de hasta el 65 % de la resolución de pantalla, con un presupuesto total de 1,2 millones de píxeles repartido entre sus capas de dibujo. Los demás conservan miniaturas aplanadas de hasta 96 px por lado; cambiar la vista no reconstruye sus gestos mientras no cambie su contenido. No se refina la página entera.
+
+El PNG incluye únicamente el frame elegido, con sus dimensiones exactas a 2× y su fondo opcional. Se reconstruye desde los gestos originales con el mismo orden de capas, filtros y recorte, independientemente de las miniaturas de edición. El máximo de salida es 4096 × 4096 px. `.ment` guarda el Artboard editable completo con todos sus frames.
+
+## Persistencia y compatibilidad
+
+El guardado principal sigue siendo la carpeta elegida y el autoguardado a los cinco segundos; IndexedDB conserva permiso y recuperación. El formato Endo nuevo es `.ment` v2; se mantiene la importación de v1 y el resto de los Studios continúa en v1. La migración conserva identificadores, gestos, borrados y filtros. Las áreas de exportación anteriores se conservan como frames/metadatos migrados. Si el contenido anterior supera el máximo de un frame, sus gestos permanecen completos en el archivo aunque el encuadre sea limitado.
+
+Las actualizaciones siguen aplicándose únicamente desde el hub, sin forzar recargas ni borrar bibliotecas.
 
 ## Verificación
-Pruebas automatizadas del motor, formatos, navegación y áreas de exportación. QA navegador: dibujo lejano, selección múltiple, edición de dos trazos sin alterar un tercero, marco desde selección y por arrastre, nombre/dimensiones de PNG, undo, guardado .ment completo y reapertura de marcos.
 
-`node tests/endo-ui-browser.mjs` comprueba además dibujo con tres materiales, selección/edición e historial, navegación entre pestañas por ratón/teclado, áreas desde la barra rápida, atajos y paneo temporal, guardado real en OPFS temporal, diálogo de carpeta y foco, descarga de .ment y PNG transparente, temas sin alterar los píxeles, disposición a 1512×982 y 1280×720 y regreso seguro al hub.
+`tests/endo-document.test.mjs` cubre migración v1/v2, referencias, límites, operaciones de frames y exportación aislada. `tests/endo-layers.test.mjs` y `tests/endo-frames-render.test.mjs` verifican composición, ajustes por orden, clipping, borrado, calidad, presupuesto de memoria, cachés y PNG transparente/con fondo.
 
-`node tests/endo-editing-browser.mjs` parte de un .ment anterior real en una carpeta OPFS aislada: comprueba capas, píxeles del borrador, selección/movimiento y copia, regiones locales, filtros visibles, colores y su historial, guardado y reapertura. `endo-document.test.mjs` y `endo-layers.test.mjs` cubren el formato, validación, composición, clipping, transparencia y equivalencia de los renders.
+Las pruebas Chrome usan perfiles y carpetas OPFS temporales: `endo-ui-browser.mjs` para herramientas, temas, layout, guardado y exportación; `endo-editing-browser.mjs` para selección, borrado, colores e historial; `endo-frames-browser.mjs` para múltiples frames, efectos flotantes, orden de ajustes, calidad activa/inactiva, límites, PNG 2× y reapertura. `pwa-browser.mjs` y `folder-workspace.test.mjs` comprueban el hub, actualizaciones y almacenamiento de los siete Studios sin acceder a la biblioteca real.

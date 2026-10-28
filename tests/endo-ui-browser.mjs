@@ -43,12 +43,13 @@ try{
  await run(`(async()=>{localStorage.setItem('basement-theme','dark');const store=await import('/project-store.js');const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('Endo UI Test',{create:true});await store.connectProjectFolder(root);await store.putProject({id:'endo-ui-test',name:'Material studies',studio:'endo',state:await(await import('/hub/studios.js')).createInitial('endo'),createdAt:Date.now(),updatedAt:Date.now()});})()`);
  await page.send('Page.navigate',{url:origin+'/?project=endo-ui-test'});
  await wait("document.querySelector('#local-status')?.textContent.startsWith('Saved in ')&&!!window.basementStudioSession");
+ await click('#zoom-fit');
  const stroke=async(brush,index)=>{
   await inspect('brush');
   await click('[data-mode=draw]');await key('Escape');
   const selector=`[data-brush=${brush}]`;await run(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);await click(selector);
-  const r=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height};})()");
-  const points=Array.from({length:40},(_,i)=>{const t=i/39;return{x:r.x+r.w*(.2+.6*t),y:r.y+r.h*(.24+index*.23+.065*Math.sin(t*Math.PI*3))};});
+  const r=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect(),s=window.basementStudioSession.capture().state;return{x:r.x,y:r.y,view:s.view,frame:s.frames.find(f=>f.id===s.activeFrameId)};})()");
+  const points=Array.from({length:40},(_,i)=>{const t=i/39,x=r.frame.x+r.frame.width*(.15+.7*t),y=r.frame.y+r.frame.height*(.2+index*.28+.05*Math.sin(t*Math.PI*3));return{x:r.x+r.view.x+x*r.view.scale,y:r.y+r.view.y+y*r.view.scale};});
   await pointer('mousePressed',points[0],1);for(const p of points.slice(1)){await pointer('mouseMoved',p,1);await delay(12);}await pointer('mouseReleased',points.at(-1),0);
   await wait(`window.basementStudioSession.capture().state.strokes.length===${index+1}`);
   return points;
@@ -77,17 +78,14 @@ try{
   await key('Home');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'brush');
   console.log('PASS one inspector panel is visible at a time; tabs work with pointer, arrows, Home and End');
 
-  const beforeArea=await run('window.basementStudioSession.capture().state.strokes.length');
-  assert.equal(await run("!!document.querySelector('#draw-frame').closest('.tool-rail')"),true,'Export-area tool belongs to the quick rail');
-  await click('#draw-frame');await wait("document.querySelector('#canvas-viewport').dataset.mode==='frame'");
-  const box=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x+r.width*.15,y:r.y+r.height*.15,w:r.width*.6,h:r.height*.6};})()");
-  await pointer('mousePressed',{x:box.x,y:box.y},1);await pointer('mouseMoved',{x:box.x+box.w,y:box.y+box.h},1);await pointer('mouseReleased',{x:box.x+box.w,y:box.y+box.h},0);
-  await wait('window.basementStudioSession.capture().state.frames.length===1');
-  await inspect('areas');assert.equal(await run("document.querySelector('#frame-list .frame-row input').value"),'Area 1');
-  await click('#frame-list .frame-row button[aria-label^="Remove "]');await wait('window.basementStudioSession.capture().state.frames.length===0');
-  assert.equal(await run('window.basementStudioSession.capture().state.strokes.length'),beforeArea);
+  const initialFrame=await run('(()=>{const s=window.basementStudioSession.capture().state;return s.frames.find(f=>f.id===s.activeFrameId)})()');
+  assert.ok(initialFrame.width>=64&&initialFrame.width<=2048&&initialFrame.height>=64&&initialFrame.height<=2048);
+  assert.equal(await run("!!document.querySelector('#draw-frame').closest('.tool-rail')"),true,'Frame tool belongs to the quick rail');
+  await inspect('areas');assert.equal(await run("document.querySelector('#frame-list .frame-entry button').getAttribute('aria-pressed')"),'true');
+  assert.equal(await run("document.querySelector('#frame-width').valueAsNumber"),initialFrame.width);
+  assert.equal(await run("document.querySelector('#frame-delete').disabled"),true,'The document retains its final drawing frame');
   await inspect('brush');
-  console.log('PASS quick export-area tool draws and removes an area without altering the strokes');
+  console.log('PASS the finite frame and its properties stay independent of the page viewport');
 
   for(const [shortcut,mode] of [['v','select'],['h','pan'],['f','frame'],['b','draw']]){
    await key(shortcut);assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),mode,'Quick tool shortcut '+shortcut);
@@ -124,7 +122,7 @@ try{
   await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key:' ',code:'Space',windowsVirtualKeyCode:32});
   await pointer('mousePressed',panPoint,1);await pointer('mouseMoved',{x:panPoint.x+30,y:panPoint.y+15},1);await pointer('mouseReleased',{x:panPoint.x+30,y:panPoint.y+15},0);
   await page.send('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
-  assert.equal(await run('window.basementStudioSession.capture().state.view.x'),beforeSpace+30,'Space + drag pans immediately after clicking Draw');
+  assert.ok(Math.abs(await run('window.basementStudioSession.capture().state.view.x')-beforeSpace-30)<.001,'Space + drag pans immediately after clicking Draw');
   assert.equal(await content(),beforeNavigation,'Space + drag never creates a paint stroke');
   await click('#zoom-fit');await click('[data-mode=draw]');
   console.log('PASS Draw / Select / Pan, Space + drag and zoom keep viewport changes separate from content');
@@ -158,65 +156,48 @@ try{
   await key('Escape');assert.equal(await run("document.querySelector('#export-menu').hidden&&document.activeElement.id==='export'"),true);
   await click('#export');await click('#show-export-areas');
   await wait("document.querySelector('#export-menu').hidden&&document.querySelector('[data-inspector-tab=areas]').getAttribute('aria-selected')==='true'");
-  assert.equal(await run("!document.querySelector('[data-inspector-panel=areas]').hidden"),true,'Manage export areas navigates to the inspector');
+  assert.equal(await run("!document.querySelector('[data-inspector-panel=areas]').hidden"),true,'Manage frames navigates to the inspector');
   await inspect('brush');
   await click('#export');await click('#export-ment');await wait('window.testDownloads.length===1');
   const ment=await run("fetch(window.testDownloads[0].url).then(r=>r.json())");
-  assert.equal(ment.format,'basement.ment');assert.equal(ment.artboard.id,'endo-ui-test');assert.equal(ment.artboard.name,'Endo material studies');
-  assert.equal(ment.artboard.layers[0].strokes.length,3);assert.deepEqual(ment.artboard.layers[0].strokes.map(s=>s.settings.brush),['cromo','relief','sand']);
+  assert.equal(ment.format,'basement.ment');assert.equal(ment.version,2);assert.equal(ment.artboard.id,'endo-ui-test');assert.equal(ment.artboard.name,'Endo material studies');
+  const editableStrokes=ment.artboard.layers.flatMap(layer=>layer.strokes);assert.equal(editableStrokes.length,3);assert.deepEqual(editableStrokes.map(stroke=>stroke.settings.brush),['cromo','relief','sand']);
+  assert.equal(ment.artboard.layers.filter(layer=>layer.kind==='paint'&&layer.strokes.length).length,3,'Each painted gesture has a movable layer');
   assert.ok(ment.artboard.preview.startsWith('data:image/png;base64,'));
   await click('#export');await click('#export-png');await wait('window.testDownloads.length===2');
   const png=await run(`(async()=>{const blob=await(await fetch(window.testDownloads[1].url)).blob(),bytes=new Uint8Array(await blob.arrayBuffer()),view=new DataView(bytes.buffer),bitmap=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;const c=canvas.getContext('2d');c.drawImage(bitmap,0,0);const pixels=c.getImageData(0,0,canvas.width,canvas.height).data;let transparent=false,painted=false;for(let i=3;i<pixels.length;i+=4){transparent||=pixels[i]===0;painted||=pixels[i]>0;if(transparent&&painted)break;}bitmap.close();return{signature:[...bytes.slice(0,8)],width:view.getUint32(16),height:view.getUint32(20),type:blob.type,transparent,painted,name:window.testDownloads[1].name};})()`);
-  assert.deepEqual(png.signature,[137,80,78,71,13,10,26,10]);assert.ok(png.width>0&&png.height>0);assert.equal(png.type,'image/png');assert.ok(png.transparent&&png.painted);assert.match(png.name,/\.png$/);
+  assert.deepEqual(png.signature,[137,80,78,71,13,10,26,10]);assert.equal(png.width,initialFrame.width*2);assert.equal(png.height,initialFrame.height*2);assert.equal(png.type,'image/png');assert.ok(png.transparent&&png.painted);assert.match(png.name,/\.png$/);
   assert.equal(await run("document.querySelector('#export-menu').hidden&&document.querySelector('#export').getAttribute('aria-expanded')==='false'"),true);
   console.log('PASS keyboard-accessible Export creates a portable .ment and a valid painted, transparent PNG');
 
-  // Drawing switches from the immediate canvas to a worker-refined bitmap.
-  // At 10% zoom (the reported case), both must composite onto the same paper.
-  const backgroundContent=await content();
-  const backgroundView=await run('({...window.basementStudioSession.capture().state.view})');
-  const refinedBackground=()=>run(`(()=>{const viewport=document.querySelector('#canvas-viewport'),refined=document.querySelector('#resolution-view'),base=document.querySelector('#artboard');return{css:getComputedStyle(viewport).backgroundColor.match(/\\d+/g).slice(0,3).map(Number),pixel:[...refined.getContext('2d').getImageData(2,2,1,1).data],baseAlpha:base.getContext('2d').getImageData(2,2,1,1).data[3],opacity:Number(getComputedStyle(refined).opacity)};})()`);
-  await run("window.testRefinements=0,document.querySelector('#resolution-view').addEventListener('endo-refined',()=>window.testRefinements++)");
+  // Frame drafts use bounded rasters and never swap in a page-sized paper bitmap.
+  const backgroundContent=await content(),backgroundView=await run('({...window.basementStudioSession.capture().state.view})');
   await run("(await import('/zoom.js')).restoreCamera({scale:.1,x:50,y:50})");
   for(const theme of ['dark','light']){
-   if(await run('document.documentElement.dataset.theme')!==theme){
-    const before=await run('window.testRefinements');
-    await click('#endo-theme-toggle');
-    await wait(`window.testRefinements>${before}&&getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'`);
-   }
-   await wait("getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'");
-   let background=await refinedBackground();
-   assert.deepEqual(background.pixel,[...background.css,255],theme+' refined paper matches the immediate canvas background');
-   assert.equal(background.baseAlpha,0,'Unpainted source pixels remain transparent');
-   await click('[data-mode=draw]');await key('Escape');
-   const start=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x+r.width*.7,y:r.y+r.height*.8};})()");
-   await pointer('mousePressed',start,1);
-   await pointer('mouseMoved',{x:start.x+35,y:start.y+15},1);
-   background=await refinedBackground();
-   assert.equal(background.opacity,0,theme+' uses the immediate canvas during the stroke');
-   assert.equal(background.baseAlpha,0,'Drawing never paints the paper into source pixels');
-   const during=background.css;
-   await pointer('mouseReleased',{x:start.x+35,y:start.y+15},0);
-   await wait("getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'");
-   background=await refinedBackground();
-   assert.deepEqual(background.pixel,[...during,255],theme+' keeps exactly the same paper after releasing the stroke at 10% zoom');
-   await click('#return');
-   assert.equal(await content(),backgroundContent,'Background regression gestures are fully undone');
+   if(await run('document.documentElement.dataset.theme')!==theme)await click('#endo-theme-toggle');
+   await run('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+   const draft=await run("(()=>{const board=document.querySelector('#artboard'),s=window.basementStudioSession.capture().state;return{quality:JSON.parse(board.dataset.frameQuality),scale:s.view.scale,overlay:getComputedStyle(document.querySelector('#resolution-view')).opacity,papers:document.querySelectorAll('#frame-backgrounds .frame-paper').length};})()");
+   assert.equal(draft.overlay,'0',theme+' does not replace the frame with an opaque refinement overlay');
+   assert.equal(draft.papers,1);assert.equal(draft.quality.length,1);assert.equal(draft.quality[0].active,true);
+   assert.ok(draft.quality[0].width*draft.quality[0].height*draft.quality[0].paintLayers<=1200000,'Active preview memory has a fixed pixel budget');
+   assert.ok(draft.quality[0].resolution<=draft.scale*.65+.001,'Editing preview uses reduced quality');
+   const start=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect(),s=window.basementStudioSession.capture().state,f=s.frames.find(f=>f.id===s.activeFrameId);return{x:r.x+s.view.x+(f.x+f.width*.4)*s.view.scale,y:r.y+s.view.y+(f.y+f.height*.5)*s.view.scale};})()");
+   await click('[data-mode=draw]');await pointer('mousePressed',start,1);await pointer('mouseMoved',{x:start.x+10,y:start.y+10},1);
+   assert.equal(await run("getComputedStyle(document.querySelector('#resolution-view')).opacity"),'0','Drawing stays on the same preview surface');
+   await pointer('mouseReleased',{x:start.x+10,y:start.y+10},0);await click('#return');
+   assert.equal(await content(),backgroundContent,'Draft regression gestures are fully undone');
   }
-  await click('#endo-theme-toggle');
-  await run(`(await import('/zoom.js')).restoreCamera(${JSON.stringify(backgroundView)})`);
-  await wait("getComputedStyle(document.querySelector('#resolution-view')).opacity==='1'");
-  const restoredBackground=await refinedBackground();
-  assert.deepEqual(restoredBackground.pixel,[...restoredBackground.css,255],'Theme switch discards the old refined paper');
-  console.log('PASS immediate and refined paper match during and after drawing at 10% zoom in both themes; source pixels stay transparent');
+  await click('#endo-theme-toggle');await run(`(await import('/zoom.js')).restoreCamera(${JSON.stringify(backgroundView)})`);
+  await inspect('brush');
+  console.log('PASS bounded frame drafts remain stable at 10% zoom in both themes, with full-resolution PNG output');
 
   const auditLayout=async label=>{
-   const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,rail:rect(document.querySelector('.tool-rail')),canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),layers:rect(document.querySelector('#layers-dock')),layerList:rect(document.querySelector('#layer-list')),inspectorScroll:rect(document.querySelector('#inspector-scroll')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('.studio-header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
+   const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,inspectorTab:document.querySelector('[data-inspector-tab][aria-selected=true]').dataset.inspectorTab,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,rail:rect(document.querySelector('.tool-rail')),canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),layers:rect(document.querySelector('#layers-dock')),layerList:rect(document.querySelector('#layer-list')),inspectorScroll:rect(document.querySelector('#inspector-scroll')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('.studio-header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
    assert.ok(layout.bodyWidth<=layout.width+1&&layout.htmlWidth<=layout.width+1,label+' has no horizontal page overflow: '+JSON.stringify(layout));
    assert.ok(layout.bodyHeight<=layout.height+1&&layout.htmlHeight<=layout.height+1,label+' has no page scrolling');
    assert.ok(layout.rail.width<=64,label+' keeps a narrow quick tool rail');
    assert.ok(layout.canvas.width>=layout.width-480&&layout.canvas.height>=400,label+' gives the drawing canvas the recovered sidebar space: '+JSON.stringify(layout.canvas));
-   assert.ok(layout.layers.bottom<=layout.height+1&&layout.layers.height>=180&&layout.layers.height<=250,label+' keeps the Layers dock visible at a useful height');
+   assert.ok(layout.layers.bottom<=layout.height+1&&layout.layers.height>=220&&layout.layers.height<=(layout.inspectorTab==='filters'?520:360),label+' keeps the enlarged Layers dock visible at a useful height: '+JSON.stringify({layers:layout.layers,viewportHeight:layout.height,tab:layout.inspectorTab}));
    assert.ok(layout.layerList.height>=50&&layout.inspectorScroll.bottom<=layout.layers.y+1,label+' scrollable properties never cover the Layers dock');
    assert.ok(layout.preview.height>=64&&layout.preview.y>=layout.inspectorScroll.y-1&&layout.preview.bottom<=layout.inspectorScroll.bottom+1,label+' exposes the preview at the top of Brush properties');
    for(const a of layout.aside)assert.ok(a.x>=-1&&a.right<=layout.width+1&&a.bottom<=layout.height+1,label+' side panel fits the viewport');
@@ -240,7 +221,7 @@ try{
   assert.equal(await run("localStorage.getItem('basement-theme')"),'dark');
   await page.send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await delay(300);
   await auditLayout('Compact dark');await capture('compact');
-  for(const [name,selector] of [['color','#color-square'],['symmetry','[data-tool=grid]'],['filters','#add-filter'],['areas','#frame-from-selection'],['brush','[data-brush=cromo]']]){
+  for(const [name,selector] of [['color','#color-square'],['symmetry','[data-tool=grid]'],['filters','#add-filter'],['areas','#new-frame-tool'],['brush','[data-brush=cromo]']]){
    await inspect(name);
    await run(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);
    assert.equal(await run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect(),scroll=document.querySelector('#inspector-scroll').getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.width>0&&r.height>0&&r.x>=0&&r.right<=innerWidth&&r.y>=scroll.y-1&&r.bottom<=scroll.bottom+1&&(hit===e||e.contains(hit));})()`),true,'Compact inspector exposes '+name+' controls above Layers without page scrolling');

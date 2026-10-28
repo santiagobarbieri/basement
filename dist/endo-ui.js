@@ -48,7 +48,7 @@ function activateInspector(name, { focus = false } = {}) {
   if (preview) preview.hidden = name !== 'brush'||document.querySelector('#canvas-viewport').dataset.mode==='erase';
   if (inspector) inspector.dataset.inspector = name;
   const heading = document.querySelector('#inspector-label');
-  if (heading) heading.textContent = { brush: 'Brush', color: 'Color', symmetry: 'Repeat', filters:'Filters', areas: 'Export areas' }[name];
+  if (heading) heading.textContent = { brush: 'Brush', color: 'Color', symmetry: 'Repeat', filters:'Filters', areas: 'Frames' }[name];
   activePanel = name;
   if (inspectorScroll) inspectorScroll.scrollTop = positions.get(name) || 0;
   if (focus) tab.focus({ preventScroll: true });
@@ -79,7 +79,6 @@ document.querySelector('#show-export-areas').addEventListener('click', () => {
   document.querySelector('#draw-frame').focus({ preventScroll: true });
 });
 document.querySelector('#draw-frame').addEventListener('click', () => activateInspector('areas'));
-document.querySelector('#repeat-region-draw').addEventListener('click',()=>activateInspector('symmetry'));
 function syncFrameTriggers() {
   const command = document.querySelector('#draw-frame');
   for (const button of document.querySelectorAll('[data-trigger-frame]')) {
@@ -115,11 +114,10 @@ function updateToolContext() {
     select: ['Select / move', 'Click or drag a stroke · Shift adds · Drag empty space to select'],
     marquee: ['Marquee', 'Drag to select strokes · Shift adds to selection'],
     erase: ['Eraser', 'Drag to erase on the active layer · Undo restores the original'],
-    'repeat-region': ['Repeat area', 'Drag a new area · Drag inside to move · Corners resize'],
     pan: ['Hand', 'Drag to move the canvas'],
-    frame: ['Export area', 'Drag to define a PNG export area']
+    frame: ['Frame', 'Drag to create · Drag the active frame to move · Corners resize']
   }[mode] || ['Draw', 'Drag to draw a stroke'];
-  if(mode==='draw'&&viewport.dataset.repetition&&viewport.dataset.repetition!=='none'){label='Draw · '+viewport.dataset.repetition[0].toUpperCase()+viewport.dataset.repetition.slice(1);hint='Draw inside the repeat area · R moves or resizes it';}
+  if(mode==='draw'&&viewport.dataset.repetition&&viewport.dataset.repetition!=='none'){label='Draw · '+viewport.dataset.repetition[0].toUpperCase()+viewport.dataset.repetition.slice(1);hint='Repetition follows the active frame center and edges';}
   const toolLabel = document.querySelector('#active-tool-label');
   const toolHint = document.querySelector('#active-tool-hint');
   if (toolLabel) toolLabel.textContent = label;
@@ -160,7 +158,7 @@ document.addEventListener('keydown', event => {
       v: '.cursor-modes button[data-mode=select]',
       e: '.cursor-modes button[data-mode=erase]',
       m: '.cursor-modes button[data-mode=marquee]',
-      r: '#repeat-region-draw',
+      r: '[data-open-inspector=symmetry]',
       h: '.cursor-modes button[data-mode=pan]',
       f: '#draw-frame'
     }[event.key.toLowerCase()];

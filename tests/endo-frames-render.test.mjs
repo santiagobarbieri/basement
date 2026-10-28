@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import {FrameSurface,LayeredSurface,rebuildLayers,renderLayerDocument} from '../dist/endo-renderer.js';
+const context={clearRect(){},createImageData(w,h){return{data:new Uint8ClampedArray(w*h*4)}},putImageData(){}};
+const canvas=(width,height)=>({width,height,getContext(){return context}});
+const scene={merge:1,light:225,relief:.8,smooth:0,shine:75,grain:0};
+const material=color=>({width:40,variation:0,speed:0,brush:'cromo',contrast:color,primary:color,shadow:color});
+const frames=[{id:'a',name:'A',x:0,y:0,width:320,height:256,background:null},{id:'b',name:'B',x:400,y:0,width:320,height:256,background:null}];
+const paint=(id,frameId)=>({id,frameId,kind:'paint',name:id,visible:true,locked:false,opacity:1,filters:[]});
+const adjust=(id,frameId,type)=>({id,frameId,kind:'adjustment',name:id,visible:true,locked:false,opacity:1,filter:{id:id+'-filter',type,enabled:true,amount:128,scale:2}});
+const layers=[paint('red','a'),adjust('invert','a','invert'),paint('blue','a'),paint('green','b')];
+const line=(number,layerId,color,y=100)=>({number,layerId,operation:'paint',settings:material(color),tool:{mode:'none'},points:[{x:50,y,time:0,pressure:1},{x:260,y,time:100,pressure:1,finish:true}]});
+const strokes=[line(1,'red','#ff0000'),line(2,'blue','#0000ff'),line(3,'green','#00ff00')];
+strokes[2].points=strokes[2].points.map(point=>({...point,x:point.x+400}));
+const surface=new FrameSurface(canvas(740,300),{resolution:1,originX:0,originY:0});surface.setDocument(strokes,layers,frames,'a');rebuildLayers(surface,strokes,scene,layers);surface.render(scene,strokes.map(stroke=>stroke.settings));
+const pixel=(image,width,x,y)=>[...image.data.slice((y*width+x)*4,(y*width+x)*4+4)];
+assert.deepEqual(pixel(surface.image,surface.w,160,100),[0,0,255,255],'Content above an adjustment stays unchanged');
+assert.deepEqual(pixel(surface.image,surface.w,560,100),[0,255,0,255],'Adjustments do not leak into another frame');
+assert.equal(surface.owner[100*surface.w+160],1,'Only the active frame exposes hit ownership');assert.equal(surface.owner[100*surface.w+560],-1);
+let quality=surface.qualityInfo;assert.ok(quality.find(item=>item.frameId==='a').width>quality.find(item=>item.frameId==='b').width);assert.ok(quality.find(item=>item.frameId==='b').width<=160);
+assert.equal(surface.entries.get('b').inner,null,'Inactive frames retain flattened thumbnails, not per-layer rasters');
+const renders=new Map(quality.map(item=>[item.frameId,item.renders]));surface.setView({resolution:1,originX:20,originY:0});rebuildLayers(surface,strokes,scene,layers);surface.render(scene,strokes.map(stroke=>stroke.settings));
+for(const item of surface.qualityInfo)assert.equal(item.renders,renders.get(item.frameId),'Panning never replays unchanged source gestures');
+surface.setView({resolution:1,originX:0,originY:0});
+const filter=layers.splice(1,1)[0];layers.splice(2,0,filter);surface.setDocument(strokes,layers,frames,'a');rebuildLayers(surface,strokes,scene,layers);surface.render(scene,strokes.map(stroke=>stroke.settings));
+assert.deepEqual(pixel(surface.image,surface.w,160,100),[255,255,0,255],'Moving an adjustment above a stroke changes that stroke');
+filter.opacity=.5;surface.setDocument(strokes,layers,frames,'a');surface.render(scene,strokes.map(stroke=>stroke.settings));assert.deepEqual(pixel(surface.image,surface.w,160,100),[128,128,128,255],'Adjustment opacity blends its effect, not source alpha');
+filter.filter.enabled=false;surface.setDocument(strokes,layers,frames,'a');surface.render(scene,strokes.map(stroke=>stroke.settings));assert.deepEqual(pixel(surface.image,surface.w,160,100),[0,0,255,255]);
+filter.filter.enabled=true;filter.opacity=1;filter.clipToLayerId='red';surface.setDocument(strokes,layers,frames,'a');surface.render(scene,strokes.map(stroke=>stroke.settings));assert.deepEqual(pixel(surface.image,surface.w,160,100),[0,0,255,255],'Legacy clipped adjustments preserve their target-only appearance');
+surface.setDocument(strokes,layers,frames,'b');rebuildLayers(surface,strokes,scene,layers);surface.render(scene,strokes.map(stroke=>stroke.settings));
+assert.equal(surface.entries.get('a').inner,null,'Leaving a frame releases its interactive layer rasters');assert.ok(surface.entries.get('b').inner instanceof LayeredSurface);assert.equal(surface.owner[100*surface.w+160],-1);assert.equal(surface.owner[100*surface.w+560],2);
+
+const outside=line(4,'red','#ffffff',200);outside.points=[{x:-50,y:200,time:0,pressure:1},{x:380,y:200,time:100,pressure:1,finish:true}];
+const clipCanvas=canvas(400,300),clip=renderLayerDocument(clipCanvas,[outside],scene,[layers[0]],{resolution:1,infinite:true,originX:-40,originY:0,frame:frames[0]});
+assert.equal(pixel(clip.image,400,20,200)[3],0);assert.equal(pixel(clip.image,400,390,200)[3],0);assert.equal(pixel(clip.image,400,200,200)[3],255,'Paint is clipped to the frame itself');
+const transparent=renderLayerDocument(canvas(640,512),strokes,scene,layers,{resolution:2,infinite:true,originX:0,originY:0,frame:frames[0]});assert.equal(pixel(transparent.image,640,0,0)[3],0,'Transparent frames stay transparent at export resolution');
+const white={...frames[0],background:'#ffffff'},background=renderLayerDocument(canvas(640,512),strokes,scene,layers,{resolution:2,infinite:true,originX:0,originY:0,frame:white});assert.deepEqual(pixel(background.image,640,0,0),[255,255,255,255]);
+assert.ok(640>surface.qualityInfo.find(item=>item.frameId==='a').width,'PNG rebuilds original gestures at a higher resolution than any inactive preview');
+assert.equal(transparent.canvas.width,frames[0].width*2);assert.equal(transparent.canvas.height,frames[0].height*2);
+const copy=structuredClone(strokes),beforePreview=surface.entries.get('a').renders;surface.setDocument(copy,layers,frames,'b');rebuildLayers(surface,copy,scene,layers);surface.render(scene,copy.map(stroke=>stroke.settings));assert.equal(surface.entries.get('a').renders,beforePreview,'Equivalent cloned documents retain inactive thumbnail caches');
+// A new stroke retains its incremental destination for the entire gesture.
+const fresh=paint('fresh','b');layers.push(fresh);const mark=line(4,'fresh','#ffffff',170);mark.points=[];strokes.push(mark);surface.setDocument(strokes,layers,frames,'b');
+const start={x:440,y:170,time:0,pressure:1},end={x:660,y:170,time:100,pressure:1,finish:true};
+const {StrokeBuilder}=await import('../dist/engine.js'),{symmetrySurface}=await import('../dist/symmetry.js');
+const builder=new StrokeBuilder(symmetrySurface(surface.strokeSurface(mark,strokes.length-1),mark.tool,start),{...mark.settings,...scene},strokes.length-1);
+mark.points.push(start);builder.add(start);surface.render(scene,strokes.map(stroke=>stroke.settings));
+const activeEntry=surface.entries.get('b');mark.points.push(end);builder.add(end,true);surface.render(scene,strokes.map(stroke=>stroke.settings));
+assert.equal(surface.entries.get('b'),activeEntry,'Appending samples does not replace the active drawing target');assert.equal(pixel(surface.image,surface.w,550,170)[3],255);
+const manyLayers=Array.from({length:64},(_,i)=>paint('many-'+i,'large')),large={id:'large',name:'Large',x:0,y:0,width:2048,height:2048,background:null};
+const bounded=new FrameSurface(canvas(100,100),{resolution:1});bounded.setDocument([],manyLayers,[large],'large');bounded.render(scene,[]);const budget=bounded.qualityInfo[0];assert.ok(budget.width*budget.height*budget.paintLayers<=1_200_000,'Active quality is bounded across the entire layer stack, not per stroke');
+// Dither belongs to frame coordinates and travels with the frame itself.
+const ditherFrame={id:'pattern-frame',name:'Pattern',x:125,y:173,width:320,height:256,background:null};
+const ditherLayers=[paint('pattern-paint',ditherFrame.id),adjust('pattern-adjust',ditherFrame.id,'dither')];ditherLayers[1].filter.scale=3;
+const ditherStroke=line(50,'pattern-paint','#888888');ditherStroke.points=ditherStroke.points.map(point=>({...point,x:point.x+ditherFrame.x,y:point.y+ditherFrame.y}));
+const renderPattern=(frame,marks)=>renderLayerDocument(canvas(640,512),marks,scene,ditherLayers,{resolution:2,infinite:true,originX:frame.x,originY:frame.y,frame}).image.data;
+const originalPattern=renderPattern(ditherFrame,[ditherStroke]);
+const movedFrame={...ditherFrame,x:ditherFrame.x+17,y:ditherFrame.y+23},movedStroke=structuredClone(ditherStroke);movedStroke.points=movedStroke.points.map(point=>({...point,x:point.x+17,y:point.y+23}));
+assert.deepEqual(renderPattern(movedFrame,[movedStroke]),originalPattern,'Frame movement by a non-lattice offset preserves the exact exported Dither pixels');
+const livePattern=new LayeredSurface(canvas(320,256),{resolution:1,infinite:true,originX:ditherFrame.x,originY:ditherFrame.y,frame:ditherFrame});rebuildLayers(livePattern,[ditherStroke],scene,ditherLayers);livePattern.render(scene,[ditherStroke.settings]);
+const movedLivePattern=new LayeredSurface(canvas(320,256),{resolution:1,infinite:true,originX:movedFrame.x,originY:movedFrame.y,frame:movedFrame});rebuildLayers(movedLivePattern,[movedStroke],scene,ditherLayers);movedLivePattern.render(scene,[movedStroke.settings]);assert.deepEqual(movedLivePattern.image.data,livePattern.image.data,'Editing and export both anchor Dither to the frame');
+// Material grain and particles travel with the same frame-local coordinates.
+const texturedScene={...scene,grain:37},texturedFrame={id:'textured',name:'Textured',x:103,y:-71,width:320,height:256,background:null};
+const texturedLayers=[paint('textured-paint',texturedFrame.id)],translatedFrame={...texturedFrame,x:texturedFrame.x+17,y:texturedFrame.y+23};
+for(const brush of ['cromo','sand','cement','relief','crayon','dust']){
+ const mark=line(77,'textured-paint','#8aa2c4');mark.settings={...mark.settings,brush,primary:'#8aa2c4',shadow:'#172334',contrast:'#eff5ff',density:67,particleSize:1.7,ridge:55,roughness:43};
+ mark.points=mark.points.map(point=>({...point,x:point.x+texturedFrame.x,y:point.y+texturedFrame.y}));
+ const moved=structuredClone(mark);moved.points=moved.points.map(point=>({...point,x:point.x+17,y:point.y+23}));
+ const exportBefore=renderLayerDocument(canvas(640,512),[mark],texturedScene,texturedLayers,{resolution:2,infinite:true,originX:texturedFrame.x,originY:texturedFrame.y,frame:texturedFrame});
+ const exportAfter=renderLayerDocument(canvas(640,512),[moved],texturedScene,texturedLayers,{resolution:2,infinite:true,originX:translatedFrame.x,originY:translatedFrame.y,frame:translatedFrame});
+ assert.deepEqual(exportAfter.image.data,exportBefore.image.data,brush+' grain/particles preserve exact exported pixels after moving the frame');
+ const draftBefore=new FrameSurface(canvas(320,256),{resolution:1,originX:texturedFrame.x,originY:texturedFrame.y});draftBefore.setDocument([mark],texturedLayers,[texturedFrame],texturedFrame.id);rebuildLayers(draftBefore,[mark],texturedScene,texturedLayers);draftBefore.render(texturedScene,[mark.settings]);
+ const draftAfter=new FrameSurface(canvas(320,256),{resolution:1,originX:translatedFrame.x,originY:translatedFrame.y});draftAfter.setDocument([moved],texturedLayers,[translatedFrame],translatedFrame.id);rebuildLayers(draftAfter,[moved],texturedScene,texturedLayers);draftAfter.render(texturedScene,[moved.settings]);
+ assert.deepEqual(draftAfter.image.data,draftBefore.image.data,brush+' draft appearance travels with the frame');
+}
+console.log('PASS frames: local adjustment stacks, order/opacity, mandatory clipping, active hit ownership, draft/thumbnail quality, cache retention, transparent/background PNG at full2x resolution');

@@ -1,14 +1,13 @@
-import {createFrames} from './frames.js';
+import {createFrameEditor} from './frames.js';
 import {camera,toWorld,restoreCamera} from './zoom.js';
 import { createSaver } from './file-save.js';
 import { presetsForBrush } from './color-presets.js';
 import { History } from './history.js';
 import { symmetrySurface, toolTransforms, transformPoint,toolRegion } from './symmetry.js';
 import { ChromeSurface, StrokeBuilder } from './engine.js';
-import {LayeredSurface,rebuildLayers} from './endo-renderer.js';
-import {normalizeEndoState,createLayer,addLayer,removeLayer,reorderLayer,duplicateLayer,duplicateSelectedStrokes,moveSelectionToLayer,translateStroke} from './endo-model.js';
+import {FrameSurface,rebuildLayers} from './endo-renderer.js';
+import {normalizeEndoState,createFrame,createLayer,addAdjustmentLayer,addLayer,removeLayer,reorderLayer,duplicateLayer,duplicateSelectedStrokes,moveSelectionToLayer,translateStroke} from './endo-model.js';
 import {documentBounds} from './document-bounds.js';
-import {createRepeatArea} from './endo-repeat-ui.js';
 import {createEditorUI} from './endo-editor-ui.js';
 
 const strokeControls = [
@@ -30,8 +29,8 @@ const defaults = { brush: 'cromo', density: 65, particleSize: 1.5, ridge: 55, ro
 const scene = {};
 for (const [key, , , , value] of strokeControls) defaults[key] = value;
 for (const [key, , , , value] of sceneControls) scene[key] = value;
-const strokes = [], layers=[createLayer('Layer 1','layer-1')];
-let activeLayerId='layer-1';
+const strokes=[],frames=[createFrame('Frame 1','frame-1',{width:960,height:850,background:null})],layers=[createLayer('Layer 1','layer-1','frame-1')];
+let activeLayerId='layer-1',activeFrameId='frame-1';
 const art = document.querySelector('#artboard');
 const viewport = document.querySelector('#canvas-viewport');
 const modeButtons = [...document.querySelectorAll('.cursor-modes button')];
@@ -40,7 +39,7 @@ const overlay = document.querySelector('#selection');
 function visibleSurface(){
   art.width=Math.max(1,viewport.clientWidth);art.height=Math.max(1,viewport.clientHeight);
   overlay.width=art.width;overlay.height=art.height;
-  return new LayeredSurface(art,{infinite:true,resolution:camera.scale,originX:-camera.x/camera.scale,originY:-camera.y/camera.scale,logicalWidth:960,logicalHeight:850});
+  return new FrameSurface(art,{infinite:true,resolution:camera.scale,originX:-camera.x/camera.scale,originY:-camera.y/camera.scale,logicalWidth:960,logicalHeight:850});
 }
 let surface=visibleSurface();const sample=new ChromeSurface(preview);
 const fields = new Map();
@@ -49,17 +48,17 @@ const guides = document.querySelector('#guides');
 const toolButtons = [...document.querySelectorAll('[data-tool]')];
 const history = new History();
 let edit = null, nextNumber = 1;
-const selection=new Set(),frames=[];let frameEditor=null,repeatEditor=null,editor=null,editGesture=null,clipboard=null;
+const selection=new Set();let frameEditor=null,editor=null,editGesture=null,clipboard=null;
 let selected = null, active = null, scheduled = false, geometryDirty = false, shadeDirty = false;
 let refinementBusy = false;
 const saver = createSaver({
-  loadState: saved=>{Object.assign(tool,saved.tool);restoreState({...snapshot(),...saved,selected:null,selection:[]});history.past=[];history.future=[];restoreCamera(saved.view);},
+  loadState: saved=>{restoreState({...saved,selected:null,selection:[]});history.past=[];history.future=[];restoreCamera(saved.view);},
   getState: () => ({...snapshot(),tool:{...tool},view:{...camera},exportTarget:document.querySelector('#export-target').value}),
   isBusy: () => busy(),
   prepare: () => {
     finishEdit();
-    surface.setDocument(strokes,layers);
-    if (geometryDirty) rebuildLayers(surface, strokes, scene, layers);
+    surface.setDocument(strokes,layers,frames,activeFrameId);
+    if (geometryDirty) rebuildLayers(surface, strokes, scene, layers,frames,activeFrameId);
     surface.render(scene, strokes.map(stroke => stroke.settings), true);
   },
   getPreview: () => art.toDataURL('image/png'),
@@ -67,7 +66,7 @@ const saver = createSaver({
 
 
 function snapshot() {
-  return { infinite:true, layers:structuredClone(layers),activeLayerId,tool:structuredClone(tool), scene: { ...scene }, defaults: { ...defaults }, selected,selection:[...selection],frames:frames.map(f=>({...f})),nextNumber,
+  return { frameVersion:1,activeFrameId,infinite:true, layers:structuredClone(layers),activeLayerId,tool:structuredClone(tool), scene: { ...scene }, defaults: { ...defaults }, selected,selection:[...selection],frames:frames.map(f=>({...f})),nextNumber,
     strokes: strokes.map(s => ({ ...s, settings: { ...s.settings }, tool: structuredClone(s.tool), points: s.points })) };
 }
 function syncCommands() {
@@ -76,7 +75,7 @@ function syncCommands() {
   document.querySelector('#delete').disabled = active !== null || selected === null;
   document.querySelector('#copy-selection').disabled=active!==null||!selection.size;
   document.querySelector('#duplicate-selection').disabled=active!==null||!selection.size;
-  document.querySelector('#paste-selection').disabled=active!==null||!clipboard?.length||activeLayer().locked||!activeLayer().visible;
+  document.querySelector('#paste-selection').disabled=active!==null||!clipboard?.length||activeLayer().kind!=='paint'||activeLayer().locked||!activeLayer().visible;
   saver.update();
 }
 function finishEdit() {
@@ -91,17 +90,25 @@ function restoreState(input) {
   const state=normalizeEndoState(input);
   Object.assign(scene, state.scene); Object.assign(defaults, state.defaults);
   for(const key of Object.keys(tool))delete tool[key];Object.assign(tool,{mode:'none',count:8,axes:'vertical',columns:3,rows:3},structuredClone(state.tool));
-  layers.splice(0,layers.length,...structuredClone(state.layers));activeLayerId=state.activeLayerId;
+  layers.splice(0,layers.length,...structuredClone(state.layers));activeLayerId=state.activeLayerId;activeFrameId=state.activeFrameId;
   strokes.splice(0,strokes.length,...state.strokes.map(stroke=>({...stroke,settings:{...stroke.settings},tool:structuredClone(stroke.tool)})));
   selection.clear();for(const id of state.selection||[])if(strokes[id]&&editableStroke(strokes[id]))selection.add(id);
-  selected=selection.size?[...selection].at(-1):null;frames.splice(0,frames.length,...(state.frames||[]).map(f=>({...f})));nextNumber=state.nextNumber;
-  surface.setDocument(strokes,layers);syncControls();schedule({geometry:true,shade:true});
+  selected=selection.size?[...selection].at(-1):null;frames.splice(0,frames.length,...(state.frames||[]).map(f=>({...f})));nextNumber=state.nextNumber;document.querySelector('#export-target').value=activeFrameId;
+  surface.setDocument(strokes,layers,frames,activeFrameId);syncControls();schedule({geometry:true,shade:true});
 }
-function busy(){return active!==null||!!editGesture||!!frameEditor?.dragging||!!repeatEditor?.dragging;}
-function editableStroke(stroke){const layer=layers.find(item=>item.id===stroke.layerId);return stroke.operation!=='erase'&&layer?.visible!==false&&!layer?.locked;}
-function activeLayer(){return layers.find(layer=>layer.id===activeLayerId)||layers[0];}
+function busy(){return active!==null||!!editGesture||!!frameEditor?.dragging;}
+function editableStroke(stroke){const layer=layers.find(item=>item.id===stroke.layerId);return stroke.operation!=='erase'&&layer?.kind==='paint'&&layer.frameId===activeFrameId&&layer.visible!==false&&!layer.locked;}
+function activeFrame(){return frames.find(frame=>frame.id===activeFrameId)||frames[0];}
+function activeLayer(){return layers.find(layer=>layer.id===activeLayerId)||layers.find(layer=>layer.frameId===activeFrameId&&layer.kind==='paint');}
+function activateFrame(id,options={}){
+ if(busy())return;finishEdit();const frame=frames.find(frame=>frame.id===id);if(!frame)return;
+ activeFrameId=id;if(activeLayer()?.frameId!==id)activeLayerId=[...layers].reverse().find(layer=>layer.frameId===id&&layer.kind==='paint').id;
+ selection.clear();selected=null;document.querySelector('#export-target').value=id;surface.setDocument(strokes,layers,frames,activeFrameId);syncControls();schedule({geometry:true,shade:true});if(options.view)restoreCamera(options.view);
+}
+function frameAt(point){return [...frames].reverse().find(frame=>point.x>=frame.x&&point.y>=frame.y&&point.x<=frame.x+frame.width&&point.y<=frame.y+frame.height);}
+window.basementFrameBounds=()=>activeFrame();
 function feedback(message){document.querySelector('#export-feedback').textContent=message;}
-function commitChange(change){if(busy())return;finishEdit();const before=snapshot();change();history.commit(before,snapshot());surface.setDocument(strokes,layers);syncControls();schedule({geometry:true,shade:true});}
+function commitChange(change){if(busy())return;finishEdit();const before=snapshot();change();history.commit(before,snapshot());surface.setDocument(strokes,layers,frames,activeFrameId);syncControls();schedule({geometry:true,shade:true});}
 function useState(next){finishEdit();const before=snapshot();restoreState(next);history.commit(before,snapshot());syncControls();}
 function selectionBounds(){const chosen=[...selection].map(id=>strokes[id]).filter(Boolean);return chosen.length?documentBounds({...snapshot(),infinite:true,strokes:chosen}):null;}
 for (const [id, action] of [['return', 'undo'], ['restore', 'redo']]) {
@@ -138,15 +145,15 @@ function schedule({ geometry = false, shade = false } = {}) {
     scheduled = false;
     const renderingBusy=active!==null||!!editGesture;
     const refinementChanged = geometryDirty || shadeDirty || surface.bounds !== null || renderingBusy !== refinementBusy;
-    surface.setDocument(strokes,layers);
-    if (geometryDirty) rebuildLayers(surface, strokes, scene, layers);
+    surface.setDocument(strokes,layers,frames,activeFrameId);
+    if (geometryDirty) rebuildLayers(surface, strokes, scene, layers,frames,activeFrameId);
     surface.render(scene, strokes.map(stroke => stroke.settings), geometryDirty || shadeDirty);
     geometryDirty = false;
     shadeDirty = false;
     highlight();
     if (refinementChanged) {
       refinementBusy = renderingBusy;
-      document.dispatchEvent(new CustomEvent('endo-artboard-rendered', { detail: { strokes, layers, scene, busy: refinementBusy } }));
+      document.dispatchEvent(new CustomEvent('endo-artboard-rendered', { detail: { strokes, layers, frames,activeFrameId, scene, busy: refinementBusy } }));
     }
   });
 }
@@ -214,11 +221,11 @@ function syncControls() {
   for (const button of modeButtons) button.disabled = active !== null;
   syncTools();
   syncCommands();
-  const label=selection.size>1?`${selection.size} strokes selected`:selected===null?'New stroke':`Stroke ${strokes[selected].number} selected`;
+  const label=selection.size>1?`${selection.size} strokes selected`:selected===null?(activeLayer().kind==='adjustment'?'Adjustment layer':'New stroke'):`Stroke ${strokes[selected].number} selected`;
   document.querySelector('#stroke-scope').textContent=label;
   const scopeHelp=document.querySelector('#stroke-scope-help');
-  if(scopeHelp)scopeHelp.textContent=activeLayer().locked?'This layer is locked. Unlock it or choose another layer.':selected===null?'New strokes on '+activeLayer().name+'. Select a stroke to edit it.':'Changes apply to the selected strokes. Esc edits new strokes.';
-  frameEditor?.refresh();repeatEditor?.refresh();editor?.render();
+  if(scopeHelp)scopeHelp.textContent=activeLayer().kind==='adjustment'?'Affects content below in '+activeFrame().name+'. Select a drawing layer to paint.':activeLayer().locked?'This layer is locked. Unlock it or choose another layer.':selected===null?'New strokes on '+activeLayer().name+'. Select a stroke to edit it.':'Changes apply to the selected strokes. Esc edits new strokes.';
+  frameEditor?.refresh();editor?.render();
   refreshPreview();
   highlight();
   document.dispatchEvent(new Event('endo-settings'));
@@ -297,7 +304,7 @@ for (const key of ['primary', 'shadow', 'contrast']) {
 function point(e,finish=false){return {...toWorld(e.clientX,e.clientY),time:e.timeStamp,pressure:e.pointerType==='pen'?Math.max(.08,e.pressure):1,finish};}
 
 function pickStroke(event){
-  if(geometryDirty){rebuildLayers(surface,strokes,scene,layers);geometryDirty=false;surface.render(scene,strokes.map(s=>s.settings),true);}
+  if(geometryDirty){rebuildLayers(surface,strokes,scene,layers,frames,activeFrameId);geometryDirty=false;surface.render(scene,strokes.map(s=>s.settings),true);}
   const rect=art.getBoundingClientRect(),p={x:(event.clientX-rect.left)*art.width/rect.width,y:(event.clientY-rect.top)*art.height/rect.height};let best=Infinity,picked=null;
   for(let y=Math.max(0,Math.floor(p.y)-6);y<=Math.min(art.height-1,Math.ceil(p.y)+6);y++)for(let x=Math.max(0,Math.floor(p.x)-6);x<=Math.min(art.width-1,Math.ceil(p.x)+6);x++){
     const id=surface.owner[y*art.width+x],distance=(x-p.x)**2+(y-p.y)**2;
@@ -306,7 +313,10 @@ function pickStroke(event){
   return picked;
 }
 art.addEventListener('pointerdown', e => {
-  if(active!==null||editGesture||e.button!==0||['pan','frame','repeat-region'].includes(viewport.dataset.mode))return;
+  if(active!==null||editGesture||e.button!==0||['pan','frame'].includes(viewport.dataset.mode))return;
+  const pointerFrame=frameAt(toWorld(e.clientX,e.clientY));
+  if(!pointerFrame){feedback('Draw inside a frame. Press F to create one.');return;}
+  if(pointerFrame.id!==activeFrameId)activateFrame(pointerFrame.id);
   if(['select','marquee'].includes(viewport.dataset.mode)){
     e.preventDefault();finishEdit();const picked=viewport.dataset.mode==='marquee'?null:pickStroke(e);
     if(e.shiftKey&&picked!==null){if(selection.has(picked))selection.delete(picked);else selection.add(picked);}
@@ -317,15 +327,18 @@ art.addEventListener('pointerdown', e => {
     editGesture={id:e.pointerId,kind:picked!==null?'move':'marquee',start:toWorld(e.clientX,e.clientY),startScreen,endScreen:startScreen,before:snapshot(),originals:[...selection].map(id=>[id,structuredClone(strokes[id])]),additive:e.shiftKey,initial:[...selection],moved:false};
     art.setPointerCapture(e.pointerId);syncControls();schedule();return;
   }
-  const layer=activeLayer();if(layer.locked||!layer.visible){feedback(layer.locked?'Unlock the active layer to draw.':'Show the active layer to draw.');return;}
-  e.preventDefault();finishEdit();const before=snapshot();
-  if(geometryDirty){rebuildLayers(surface,strokes,scene,layers);geometryDirty=false;shadeDirty=true;}
+  let layer=activeLayer();if(layer.kind==='adjustment'){feedback('Select a drawing layer or create a new one to draw.');return;}if(layer.locked||!layer.visible){feedback(layer.locked?'Unlock the active layer to draw.':'Show the active layer to draw.');return;}
+  e.preventDefault();finishEdit();feedback('');const before=snapshot();
+  if(geometryDirty){rebuildLayers(surface,strokes,scene,layers,frames,activeFrameId);geometryDirty=false;shadeDirty=true;}
   const erasing=viewport.dataset.mode==='erase',settings={...defaults,...(erasing?{brush:'cromo',variation:0,speed:0}:{})};
-  const id=strokes.length,strokeTool=erasing?{mode:'none'}:structuredClone(tool),p=point(e);
-  if(!erasing&&tool.mode!=='none'){const box=toolRegion(tool);if(p.x<box.x||p.y<box.y||p.x>box.x+box.width||p.y>box.y+box.height){feedback('Start inside the repeat area. Press R to move or resize it.');return;}}
+  const id=strokes.length,strokeTool=erasing?{mode:'none'}:{...structuredClone(tool),region:{x:activeFrame().x,y:activeFrame().y,width:activeFrame().width,height:activeFrame().height}},p=point(e);
+  if(!erasing&&strokes.some(stroke=>stroke.layerId===layer.id)){
+    if(layers.length>=512){feedback('This Artboard has reached its layer limit.');return;}
+    const fresh=createLayer('Stroke '+nextNumber,crypto.randomUUID(),activeFrameId);layers.splice(layers.indexOf(layer)+1,0,fresh);layer=fresh;activeLayerId=fresh.id;
+  }else if(!erasing&&/^Layer \d+$/.test(layer.name))layer.name='Stroke '+nextNumber;
   const stroke={number:nextNumber++,layerId:layer.id,operation:erasing?'erase':'paint',settings,tool:strokeTool,points:[]};strokes.push(stroke);
   selection.clear();selected=null;
-  surface.setDocument(strokes,layers);
+  surface.setDocument(strokes,layers,frames,activeFrameId);
   active={before,pointerId:e.pointerId,id,builder:new StrokeBuilder(symmetrySurface(surface.strokeSurface(stroke,id),strokeTool,p),{...settings,...scene},id)};
   art.setPointerCapture(e.pointerId);stroke.points.push(p);active.builder.add(p);syncControls();schedule();
 });
@@ -388,7 +401,7 @@ function syncTools() {
   saver.update();
 }
 function drawGuides() {
-  const ctx=guides.getContext('2d'),region=toolRegion(tool),w=region.width,h=region.height;
+  const ctx=guides.getContext('2d'),region=activeFrame(),w=region.width,h=region.height;
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,guides.width,guides.height);ctx.setTransform(camera.scale,0,0,camera.scale,camera.x,camera.y);
   ctx.save();ctx.translate(region.x,region.y);ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
   ctx.strokeStyle = 'rgba(0,85,255,.22)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]); ctx.beginPath();
@@ -405,10 +418,10 @@ function drawGuides() {
     for (let i = 1; i < tool.columns; i++) { ctx.moveTo(w * i / tool.columns, 0); ctx.lineTo(w * i / tool.columns, h); }
     for (let i = 1; i < tool.rows; i++) { ctx.moveTo(0, h * i / tool.rows); ctx.lineTo(w, h * i / tool.rows); }
   }
-  ctx.stroke();ctx.restore();repeatEditor?.draw(ctx);
+  ctx.stroke();ctx.restore();
 }
 for (const button of toolButtons) button.addEventListener('click', () => {
-  commitChange(()=>{tool.mode=tool.mode===button.dataset.tool?'none':button.dataset.tool;if(tool.mode!=='none'&&!tool.region)tool.region=repeatEditor?.visible()||{x:0,y:0,width:960,height:850};});
+  commitChange(()=>{tool.mode=tool.mode===button.dataset.tool?'none':button.dataset.tool;delete tool.region;});
 });
 for (const key of ['count', 'columns', 'rows']) {
   const input = document.querySelector('#tool-' + key), output = document.querySelector('#tool-' + key + '-value');
@@ -433,7 +446,7 @@ for (const button of modeButtons) button.addEventListener('click', () => {
   finishEdit(); viewport.dataset.mode = button.dataset.mode;
   for (const b of modeButtons) b.setAttribute('aria-pressed', String(b === button));
   if(['draw','erase'].includes(button.dataset.mode)){selection.clear();selected=null;}syncControls();
-  viewport.classList.remove('dragging');frameEditor?.refresh();repeatEditor?.refresh();drawGuides();
+  viewport.classList.remove('dragging');frameEditor?.refresh();drawGuides();
 });
 art.addEventListener('pointerup', end);
 art.addEventListener('pointercancel', end);
@@ -451,48 +464,47 @@ for (const button of document.querySelectorAll('.brush-switch [data-brush]')) {
 
 document.addEventListener('endo-camera-change',()=>{
  if(active)return;
- surface=visibleSurface();guides.width=art.width;guides.height=art.height;drawGuides();schedule({geometry:true,shade:true});
+ surface.setView({resolution:camera.scale,originX:-camera.x/camera.scale,originY:-camera.y/camera.scale},viewport.clientWidth,viewport.clientHeight);overlay.width=art.width;overlay.height=art.height;guides.width=art.width;guides.height=art.height;drawGuides();schedule({geometry:true,shade:true});
 });
 guides.width=art.width;guides.height=art.height;drawGuides();schedule({geometry:true,shade:true});
 
-frameEditor=createFrames({frames,art,overlay,viewport,camera,toWorld,getState:snapshot,
- commit:change=>{if(active||editGesture||repeatEditor?.dragging)return;finishEdit();const before=snapshot();change();history.commit(before,snapshot());syncControls();highlight();},
- onChange:()=>{syncControls();highlight();},onPaint:highlight,getBusy:()=>active!==null||!!editGesture||!!repeatEditor?.dragging,getSelection:()=>[...selection].map(id=>strokes[id])});
+frameEditor=createFrameEditor({art,viewport,camera,toWorld,getState:snapshot,apply:useState,onActivate:activateFrame,onPaint:()=>{drawGuides();highlight();},getBusy:()=>active!==null||!!editGesture});
 frameEditor.refresh();highlight();
 document.addEventListener('keydown',e=>{
- if(active||frameEditor.dragging||repeatEditor?.dragging||e.target.closest('input,select,textarea,[contenteditable=true]'))return;
+ if(active||frameEditor.dragging||e.target.closest('input,select,textarea,[contenteditable=true]'))return;
  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='a'&&viewport.dataset.mode==='select'){e.preventDefault();finishEdit();selection.clear();strokes.forEach((stroke,i)=>{if(editableStroke(stroke))selection.add(i)});selected=selection.size?[...selection].at(-1):null;syncControls();highlight();}
  if(e.key==='Escape'){if(editGesture){const before=editGesture.before,id=editGesture.id;editGesture=null;if(art.hasPointerCapture(id))art.releasePointerCapture(id);restoreState(before);}finishEdit();selection.clear();selected=null;syncControls();highlight();}
 });
 
-repeatEditor=createRepeatArea({tool,art,viewport,camera,toWorld,commit:commitChange,onPaint:drawGuides,getBusy:()=>active!==null||!!editGesture||!!frameEditor?.dragging,getSelectionBounds:selectionBounds});
 function layerAction(action,data={}){
  if(action==='finish-edit'){finishEdit();syncControls();return;}
  if(busy())return;
  const layer=activeLayer();
+ if(action==='edit-filter'){activeLayerId=data.id;selection.clear();selected=null;syncControls();editor?.openFilter(data.id);return;}
+ if(action==='add-filter'){const next=addAdjustmentLayer(snapshot(),data.type);useState(next);editor?.openFilter(activeLayerId);return;}
+ if(action==='filter-remove'){useState(removeLayer(snapshot(),data.id));return;}
+ if(action==='reorder-layer'){const item=layers.find(layer=>layer.id===data.id),target=layers.find(layer=>layer.id===data.targetId);if(!item||!target||item.frameId!==target.frameId)return;commitChange(()=>{layers.splice(layers.indexOf(item),1);layers.splice(layers.indexOf(target)+(data.before?0:1),0,item);if(item.kind==='adjustment')delete item.clipToLayerId;});return;}
  if(action==='activate-layer'){if(activeLayerId===data.id&&!selection.size)return;finishEdit();activeLayerId=data.id;selection.clear();selected=null;syncControls();saver.update();return;}
  if(action==='add-layer'){useState(addLayer(snapshot()));return;}
  if(action==='duplicate-layer'){useState(duplicateLayer(snapshot(),layer.id));return;}
- if(action==='delete-layer'){if(layers.length>1)useState(removeLayer(snapshot(),layer.id));return;}
+ if(action==='delete-layer'){useState(removeLayer(snapshot(),layer.id));return;}
  if(action==='layer-up'||action==='layer-down'){useState(reorderLayer(snapshot(),layer.id,action==='layer-up'?1:-1));return;}
  if(action==='selection-to-layer'){
   if(!selection.size)return;let next=addLayer(snapshot(),{name:'Selection'});next=moveSelectionToLayer(next,[...selection],next.activeLayerId);useState(next);return;
  }
- if(action==='layer-opacity'){const wasEmpty=layer.opacity===0;beginEdit(data.element);layer.opacity=data.value;surface.setDocument(strokes,layers);schedule({geometry:wasEmpty&&data.value>0,shade:true});return;}
- if(action==='filter-input'){if(layer.locked)return;const filter=layer.filters.find(f=>f.id===data.id);if(filter){beginEdit(data.element);filter[data.key]=data.value;surface.setDocument(strokes,layers);schedule({shade:true});}return;}
+ if(action==='layer-opacity'){const wasEmpty=layer.opacity===0;beginEdit(data.element);layer.opacity=data.value;surface.setDocument(strokes,layers,frames,activeFrameId);schedule({geometry:wasEmpty&&data.value>0,shade:true});return;}
+ if(action==='filter-input'){const target=layers.find(item=>item.id===data.id),filter=target?.filter;if(target?.locked)return;if(filter){beginEdit(data.element);filter[data.key]=data.value;surface.setDocument(strokes,layers,frames,activeFrameId);schedule({shade:true});}return;}
  commitChange(()=>{
   if(action==='layer-visible'){const item=layers.find(l=>l.id===data.id);item.visible=!item.visible;if(!item.visible){for(const id of [...selection])if(strokes[id].layerId===item.id)selection.delete(id);selected=selection.size?[...selection].at(-1):null;}}
   if(action==='layer-lock'){const item=layers.find(l=>l.id===data.id);item.locked=!item.locked;if(item.locked){for(const id of [...selection])if(strokes[id].layerId===item.id)selection.delete(id);selected=selection.size?[...selection].at(-1):null;}}
   if(action==='rename-layer')layers.find(l=>l.id===data.id).name=data.name;
-  if(action==='add-filter'&&!layer.locked&&layer.filters.length<8)layer.filters.push({id:crypto.randomUUID(),type:data.type,enabled:true,amount:128,scale:2});
-  if(action==='filter-toggle'&&!layer.locked){const filter=layer.filters.find(f=>f.id===data.id);filter.enabled=!filter.enabled;}
-  if(action==='filter-remove'&&!layer.locked)layer.filters=layer.filters.filter(f=>f.id!==data.id);
+  if(action==='filter-toggle'){const target=layers.find(item=>item.id===data.id);if(target?.filter&&!target.locked)target.filter.enabled=!target.filter.enabled;}
  });
 }
 editor=createEditorUI({getState:()=>({...snapshot(),selection:[...selection]}),onAction:layerAction,getBusy:busy});
 function copySelection(){if(busy()||!selection.size)return;clipboard=[...selection].map(id=>structuredClone(strokes[id]));feedback('Copied '+clipboard.length+' stroke'+(clipboard.length===1?'':'s'));syncCommands();}
 function pasteSelection(){
- if(busy()||!clipboard?.length||activeLayer().locked||!activeLayer().visible)return;
+ if(busy()||!clipboard?.length||activeLayer().kind!=='paint'||activeLayer().locked||!activeLayer().visible)return;
  commitChange(()=>{selection.clear();for(const source of clipboard){const stroke=translateStroke(source,20,20);stroke.layerId=activeLayerId;stroke.number=nextNumber++;strokes.push(stroke);selection.add(strokes.length-1);}selected=[...selection].at(-1);});
 }
 function duplicateSelection(){if(!busy()&&selection.size)useState(duplicateSelectedStrokes(snapshot(),[...selection]));}

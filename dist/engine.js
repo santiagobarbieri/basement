@@ -14,6 +14,10 @@ export class ChromeSurface {
     this.resolution = options.resolution || 1;
     this.originX = options.originX || 0;
     this.originY = options.originY || 0;
+    // Frame-local material coordinates travel with the frame. Geometry and
+    // clipping remain in document coordinates; legacy surfaces keep origin0.
+    this.textureOriginX = options.frame?.x || 0;
+    this.textureOriginY = options.frame?.y || 0;
     this.logicalWidth = options.logicalWidth || this.w / this.resolution;
     this.logicalHeight = options.logicalHeight || this.h / this.resolution;
     this.coverage = new Float32Array(this.w * this.h);
@@ -63,14 +67,14 @@ export class ChromeSurface {
       const d = Math.min(distance, Math.max(0, r - .25)) / r;
       let profile = Math.sqrt(Math.max(0, 1 - d * d));
       if (settings.brush === 'relief') {
-        const wx = this.originX + (x + .5) / q, wy = this.originY + (y + .5) / q;
+        const wx = this.originX - this.textureOriginX + (x + .5) / q, wy = this.originY - this.textureOriginY + (y + .5) / q;
         const ridge = (settings.ridge ?? 55) / 100;
         const roughness = (settings.roughness ?? 40) / 100;
         const noise = surfaceNoise(wx * .65, wy * .65) + surfaceNoise(wx * 2.1, wy * 2.1) * .3;
         profile = Math.max(.02, profile * (1 + ridge * Math.pow(1 - d, 6) + roughness * noise * .55));
       }
       const brush = settings.brush || 'cromo';
-      const wx = this.originX + (x + .5) / q, wy = this.originY + (y + .5) / q;
+      const wx = this.originX - this.textureOriginX + (x + .5) / q, wy = this.originY - this.textureOriginY + (y + .5) / q;
       const scale = Math.max(.4, settings.particleSize ?? 1.5);
       const cellX = Math.floor(wx / scale), cellY = Math.floor(wy / scale);
       const random = particleHash(cellX, cellY);
@@ -135,7 +139,7 @@ export class ChromeSurface {
         const v = ['relief', 'sand', 'cement'].includes(p.brush)
           ? Math.max(0, Math.min(1, .24 + (n + nz * .65) * .46 + spec * p.shine / 100 * .28))
           : Math.max(0, Math.min(1, .12 + band * .67 + spec * p.shine / 100));
-        const grain = surfaceNoise(this.originX + (x + .5) / this.resolution, this.originY + (y + .5) / this.resolution) * p.grain / 100;
+        const grain = surfaceNoise(this.originX - this.textureOriginX + (x + .5) / this.resolution, this.originY - this.textureOriginY + (y + .5) / this.resolution) * p.grain / 100;
         for (let c = 0; c < 3; c++) {
           const materialValue = ['crayon', 'dust'].includes(p.brush) ? .42 + nz * .12 : v;
           const color = materialValue < .5

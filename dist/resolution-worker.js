@@ -1,30 +1,15 @@
-import { renderLayerDocument } from './endo-renderer.js';
-self.onmessage = async ({ data }) => {
-  const { id, strokes, scene, view, background, layers } = data;
-  try {
-    let resolution = Math.max(.1, view.scale * Math.min(view.dpr, 2));
-    const compute = () => {
-      const width = Math.max(1, Math.ceil(view.width / view.scale * resolution));
-      const height = Math.max(1, Math.ceil(view.height / view.scale * resolution));
-      const pad = Math.ceil((scene.merge + 2) * resolution);
-      return { width, height, pad };
-    };
-    let size = compute();
-    while ((size.width + size.pad * 2) * (size.height + size.pad * 2) > 4_000_000) {
-      resolution *= .9; size = compute();
-    }
-    const { width, height, pad } = size;
-    const originX = -view.x / view.scale, originY = -view.y / view.scale;
-    const canvas = new OffscreenCanvas(width + pad * 2, height + pad * 2);
-    const surface = renderLayerDocument(canvas, strokes, scene, layers, {
-      resolution, originX: originX - pad / resolution, originY: originY - pad / resolution,
-      infinite:true,logicalWidth:960,logicalHeight:850,
-    });
-    // Match the live canvas paper, covering the old stroke without double alpha.
-    surface.ctx.globalCompositeOperation = 'destination-over';
-    surface.ctx.fillStyle = background;
-    surface.ctx.fillRect(0,0,canvas.width,canvas.height);
-    const bitmap = await createImageBitmap(canvas, pad, pad, width, height);
-    self.postMessage({ id, bitmap, resolution, samples: canvas.width * canvas.height }, [bitmap]);
-  } catch (error) { self.postMessage({ id, error: error.message }); }
+import {renderLayerDocument} from './endo-renderer.js';
+// Optional single-frame draft worker. The editor normally keeps its active
+// frame incremental in FrameSurface; this worker never reconstructs the page.
+self.onmessage=async({data})=>{
+ try{
+  const frame=data.frame||data.frames?.find(item=>item.id===data.activeFrameId);
+  if(!frame)throw Error('Choose a frame to preview.');
+  const layers=(data.layers||[]).filter(layer=>layer.frameId===frame.id),ids=new Set(layers.map(layer=>layer.id));
+  const strokes=(data.strokes||[]).filter(stroke=>ids.has(stroke.layerId));
+  const resolution=Math.max(.001,Math.min((data.view?.scale||1)*.65,Math.sqrt(1_200_000/(frame.width*frame.height))));
+  const canvas=new OffscreenCanvas(Math.max(1,Math.ceil(frame.width*resolution)),Math.max(1,Math.ceil(frame.height*resolution)));
+  renderLayerDocument(canvas,strokes,data.scene,layers,{resolution,infinite:true,originX:frame.x,originY:frame.y,logicalWidth:960,logicalHeight:850,frame});
+  const bitmap=await createImageBitmap(canvas);self.postMessage({id:data.id,bitmap,frameId:frame.id,resolution,samples:canvas.width*canvas.height},[bitmap]);
+ }catch(error){self.postMessage({id:data.id,error:error.message});}
 };
