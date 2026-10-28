@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "hash": "db36f50923fec6badacb0a252305abff1b8422b4b252e008d45d8be1d3b56003",
-  "bytes": 68949167,
+  "hash": "ee44a400421003cb2684cc720e7f4252fb0af963265e1bb24e4e49af68570391",
+  "bytes": 69019034,
   "files": [
     {
       "url": "/app-updates.js",
@@ -10,8 +10,8 @@
     },
     {
       "url": "/app.js",
-      "hash": "d7aa58b4ffb0aa8cce7328509d93c0292abb669b8ba85fc78c486e28ff5b8e91",
-      "bytes": 22491
+      "hash": "a0ac79a7b3b744a5fd7d7715318542eda59cad7370703880a3f15ed9bc76ace7",
+      "bytes": 35295
     },
     {
       "url": "/assets/endo.svg",
@@ -20,8 +20,8 @@
     },
     {
       "url": "/color-picker.js",
-      "hash": "e25b1d8020de4434d98879099e9e2d25fc762bc6ab693df0f171135fdf72b23f",
-      "bytes": 5558
+      "hash": "9c920d90875f8e29fe14bc59210b667c4120ed0b427696b7d2b57cc1f147539b",
+      "bytes": 8352
     },
     {
       "url": "/color-presets.js",
@@ -235,18 +235,43 @@
     },
     {
       "url": "/document-bounds.js",
-      "hash": "c1c8e1a661f4225107d5df6372f209d9d1b1c08de695d43088933e570300ab6d",
-      "bytes": 1773
+      "hash": "d9036992bccc613456d3e9b3689b1ff462d6a660e1eeb869c2d750dfd7d1e033",
+      "bytes": 3255
+    },
+    {
+      "url": "/endo-editor-ui.js",
+      "hash": "eab8985625a4de298df33fa78420875285b56c730fe736365d8b4df9954590ab",
+      "bytes": 6972
+    },
+    {
+      "url": "/endo-filters.js",
+      "hash": "b0f1ff854e2330e34ac602ecbf8fdabc9716ed9d2279091b5c5694e08b8c929b",
+      "bytes": 1892
+    },
+    {
+      "url": "/endo-model.js",
+      "hash": "06d2d37c8446dd84de4e706c22a51ffa7618c5db1b7eecc820bc5ef38bd6d931",
+      "bytes": 11105
+    },
+    {
+      "url": "/endo-renderer.js",
+      "hash": "179af6d48e68d6768955e0ff6181c03bee51657a0d54f653c2e907aa66953b48",
+      "bytes": 8841
+    },
+    {
+      "url": "/endo-repeat-ui.js",
+      "hash": "a1344354ec8ed4820ea180c08f6a45f64f65aa6dfb6d2475d89265e0289d70c5",
+      "bytes": 5958
     },
     {
       "url": "/endo-ui.js",
-      "hash": "2cd162b1dddb81e174824fcd3fa3e9e424ac728cfa4accbcf84aa2aaa56fd88c",
-      "bytes": 7855
+      "hash": "a62fab274b5a45ae2e6f4b2963d5b4197b17a692d9271a8dcb02d2323db4c724",
+      "bytes": 9177
     },
     {
       "url": "/engine.js",
-      "hash": "55c8b448fd4e1e8a65fc5637efbe4f7e8a98d1228aeaa2cdbd19fa93f98b4657",
-      "bytes": 11042
+      "hash": "c6c4c9d5ca90eb50d73a362c5612643e9b8eef246ec15a6ebc51d839581d8c42",
+      "bytes": 11704
     },
     {
       "url": "/file-save.js",
@@ -595,8 +620,8 @@
     },
     {
       "url": "/index.html",
-      "hash": "8564101eca50167dc10a6e9a2e2fd9c14058713ea91840271bebf994380c6f3f",
-      "bytes": 14611
+      "hash": "a421fedd451db2929e364e7b1039ab01c452ffa3aaeeb4a2c459466f3880ebdb",
+      "bytes": 19939
     },
     {
       "url": "/kiln/app.js",
@@ -745,23 +770,23 @@
     },
     {
       "url": "/ment-format.js",
-      "hash": "a95b9fcf8bf93b372722f9356ba0615a1dda535f6d4a37fa258b02adbfbf380b",
-      "bytes": 1495
+      "hash": "1bb770d1e4b84a7a441903425ddca9c5b40673224a2ac95dce53f30c3bde8c53",
+      "bytes": 2042
     },
     {
       "url": "/png-export.js",
-      "hash": "d35e073d3ac36ccf063c63723c39125b9e6058ae91ffd9db44446d50509ae6b3",
-      "bytes": 1335
+      "hash": "ac5474efda072225c59609508b1214d1c5727bdf9d8d07d67257d4f83d52a920",
+      "bytes": 1249
     },
     {
       "url": "/png-worker.js",
-      "hash": "7aae880a40fd6ce82f2eab5811066d173de1c5fd8a9a82ec7146cc8929491693",
-      "bytes": 718
+      "hash": "3a1632ed9a80a65d4f3773411886c8ec8ec7284d49a37ac17abf7c4b37bdf681",
+      "bytes": 646
     },
     {
       "url": "/project-store.js",
-      "hash": "ad6d63c4d41bcc4883417df62f2973f245f891c4ec92b3cbce2107d93249dfd3",
-      "bytes": 20152
+      "hash": "0f6b56dd39853a6f27e2fc2c32f4532aff167a6401c91831bd99c7c3a8ef0f2d",
+      "bytes": 21438
     },
     {
       "url": "/pwa.js",
@@ -770,13 +795,13 @@
     },
     {
       "url": "/resolution-worker.js",
-      "hash": "87d04ab27b43397ed2560d6e5238fd512a59e73c4ecb323763a97c9e1150c2bb",
-      "bytes": 1678
+      "hash": "812ad215a32cf625c9c2a88bdb5c2ad2c0cf5c05ea66dbe47cfd41d8de173b03",
+      "bytes": 1611
     },
     {
       "url": "/resolution.js",
-      "hash": "5a9bb7ef171b3315f2ed9dd96e05e5a3c7c28167ac0cabc9ba95154387f3ec6e",
-      "bytes": 2703
+      "hash": "910e45339541b90846fda8b3c37a357c5695a75a3d32822078f250f16dc12313",
+      "bytes": 2740
     },
     {
       "url": "/session.js",
@@ -790,13 +815,13 @@
     },
     {
       "url": "/style.css",
-      "hash": "206dfbf59bc4adbc7e8dd236682b58b12a4063a11ca7b4a6963fd496a79b1484",
-      "bytes": 24055
+      "hash": "4b3b5b46808ef9d0e40b77e10538f8b9e911879483b471eb6aefa67ae937e6eb",
+      "bytes": 31824
     },
     {
       "url": "/symmetry.js",
-      "hash": "268357568cf6e5ab44da2ef7b847b2b405585fb8eb0ee4580cc39f0d663902ad",
-      "bytes": 2941
+      "hash": "7a12851108a1c21d022e831fc0ceed9814b2de6c211a41d9ec22d27d59b55fa0",
+      "bytes": 4191
     },
     {
       "url": "/tremor/app.js",
@@ -905,8 +930,8 @@
     },
     {
       "url": "/zoom.js",
-      "hash": "b2c9b8c10fc4ebdf73541d91fcebc6cc2e6eaf9314aa8d386eb60328b43222de",
-      "bytes": 4495
+      "hash": "8d152accaacada973ca739c71557fd059886ed4452561c7e44a106ca5f6d7662",
+      "bytes": 4538
     }
   ]
 }

@@ -1,5 +1,5 @@
 import {exportGeometry,exportState} from './document-bounds.js';
-import { ChromeSurface, rebuild } from './engine.js';
+import { renderLayerDocument } from './endo-renderer.js';
 export async function exportPng(input) {
  const state=input;
   if (typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined') {
@@ -12,7 +12,7 @@ export async function exportPng(input) {
   }
   await new Promise(resolve => requestAnimationFrame(resolve));
   const region=exportGeometry(state),canvas=document.createElement('canvas');canvas.width=region.width;canvas.height=region.height;
-  const surface = new ChromeSurface(canvas, {resolution:2,infinite:!!state.infinite,originX:region.x,originY:region.y,logicalWidth:960,logicalHeight:850});
-  const rendered=exportState(state);rebuild(surface,rendered.strokes,state.scene);surface.render(state.scene,rendered.strokes.map(stroke=>stroke.settings));
+  const rendered=exportState(state);
+  renderLayerDocument(canvas,rendered.strokes,state.scene,rendered.layers,{resolution:2,infinite:!!state.infinite,originX:region.x,originY:region.y,logicalWidth:960,logicalHeight:850});
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo generar PNG')), 'image/png'));
 }

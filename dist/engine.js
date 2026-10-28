@@ -40,10 +40,12 @@ export class ChromeSurface {
     ra *= q; rb *= q;
     if (!Number.isFinite(ax + ay + bx + by + ra + rb) || Math.max(ra, rb) <= 0) return;
     const radius = Math.max(ra, rb) + 1;
-    const x0 = Math.max(0, this.infinite ? 0 : Math.ceil(-this.originX * q), Math.floor(Math.min(ax, bx) - radius));
-    const x1 = Math.min(this.w - 1, this.infinite ? this.w - 1 : Math.ceil((this.logicalWidth - this.originX) * q) - 1, Math.ceil(Math.max(ax, bx) + radius));
-    const y0 = Math.max(0, this.infinite ? 0 : Math.ceil(-this.originY * q), Math.floor(Math.min(ay, by) - radius));
-    const y1 = Math.min(this.h - 1, this.infinite ? this.h - 1 : Math.ceil((this.logicalHeight - this.originY) * q) - 1, Math.ceil(Math.max(ay, by) + radius));
+    const clip = settings.clipRect;
+    const clipped = clip && [clip.x,clip.y,clip.width,clip.height].every(Number.isFinite) && clip.width>0 && clip.height>0;
+    const x0 = Math.max(clipped ? Math.ceil((clip.x-this.originX)*q-.5) : 0, 0, this.infinite ? 0 : Math.ceil(-this.originX * q), Math.floor(Math.min(ax, bx) - radius));
+    const x1 = Math.min(clipped ? Math.ceil((clip.x+clip.width-this.originX)*q-.5)-1 : this.w-1, this.w - 1, this.infinite ? this.w - 1 : Math.ceil((this.logicalWidth - this.originX) * q) - 1, Math.ceil(Math.max(ax, bx) + radius));
+    const y0 = Math.max(clipped ? Math.ceil((clip.y-this.originY)*q-.5) : 0, 0, this.infinite ? 0 : Math.ceil(-this.originY * q), Math.floor(Math.min(ay, by) - radius));
+    const y1 = Math.min(clipped ? Math.ceil((clip.y+clip.height-this.originY)*q-.5)-1 : this.h-1, this.h - 1, this.infinite ? this.h - 1 : Math.ceil((this.logicalHeight - this.originY) * q) - 1, Math.ceil(Math.max(ay, by) + radius));
     if (x1 < x0 || y1 < y0) return;
     const dx = bx - ax, dy = by - ay, length = dx * dx + dy * dy;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -52,6 +54,12 @@ export class ChromeSurface {
       const distance = Math.hypot(x + .5 - ax - t * dx, y + .5 - ay - t * dy);
       let coverage = Math.max(0, Math.min(1, r - distance + .5));
       if (!coverage || r <= 0) continue;
+      if (settings.operation === 'erase') {
+        const i = y * this.w + x;
+        this.coverage[i] *= 1 - coverage;
+        if (this.coverage[i] < .001) { this.coverage[i] = 0; this.height[i] = 0; this.owner[i] = -1; }
+        continue;
+      }
       const d = Math.min(distance, Math.max(0, r - .25)) / r;
       let profile = Math.sqrt(Math.max(0, 1 - d * d));
       if (settings.brush === 'relief') {

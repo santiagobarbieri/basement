@@ -3,8 +3,13 @@ import {camera,toWorld,restoreCamera} from './zoom.js';
 import { createSaver } from './file-save.js';
 import { presetsForBrush } from './color-presets.js';
 import { History } from './history.js';
-import { symmetrySurface, toolTransforms, transformPoint } from './symmetry.js';
-import { ChromeSurface, StrokeBuilder, rebuild } from './engine.js';
+import { symmetrySurface, toolTransforms, transformPoint,toolRegion } from './symmetry.js';
+import { ChromeSurface, StrokeBuilder } from './engine.js';
+import {LayeredSurface,rebuildLayers} from './endo-renderer.js';
+import {normalizeEndoState,createLayer,addLayer,removeLayer,reorderLayer,duplicateLayer,duplicateSelectedStrokes,moveSelectionToLayer,translateStroke} from './endo-model.js';
+import {documentBounds} from './document-bounds.js';
+import {createRepeatArea} from './endo-repeat-ui.js';
+import {createEditorUI} from './endo-editor-ui.js';
 
 const strokeControls = [
   ['width', 'Width', 2, 100, 28, 1, 'px', 'Base width of the selected strokes, or of new strokes when nothing is selected.'],
@@ -25,7 +30,8 @@ const defaults = { brush: 'cromo', density: 65, particleSize: 1.5, ridge: 55, ro
 const scene = {};
 for (const [key, , , , value] of strokeControls) defaults[key] = value;
 for (const [key, , , , value] of sceneControls) scene[key] = value;
-const strokes = [];
+const strokes = [], layers=[createLayer('Layer 1','layer-1')];
+let activeLayerId='layer-1';
 const art = document.querySelector('#artboard');
 const viewport = document.querySelector('#canvas-viewport');
 const modeButtons = [...document.querySelectorAll('.cursor-modes button')];
@@ -34,7 +40,7 @@ const overlay = document.querySelector('#selection');
 function visibleSurface(){
   art.width=Math.max(1,viewport.clientWidth);art.height=Math.max(1,viewport.clientHeight);
   overlay.width=art.width;overlay.height=art.height;
-  return new ChromeSurface(art,{infinite:true,resolution:camera.scale,originX:-camera.x/camera.scale,originY:-camera.y/camera.scale,logicalWidth:960,logicalHeight:850});
+  return new LayeredSurface(art,{infinite:true,resolution:camera.scale,originX:-camera.x/camera.scale,originY:-camera.y/camera.scale,logicalWidth:960,logicalHeight:850});
 }
 let surface=visibleSurface();const sample=new ChromeSurface(preview);
 const fields = new Map();
@@ -43,16 +49,17 @@ const guides = document.querySelector('#guides');
 const toolButtons = [...document.querySelectorAll('[data-tool]')];
 const history = new History();
 let edit = null, nextNumber = 1;
-const selection=new Set(),frames=[];let frameEditor=null;
+const selection=new Set(),frames=[];let frameEditor=null,repeatEditor=null,editor=null,editGesture=null,clipboard=null;
 let selected = null, active = null, scheduled = false, geometryDirty = false, shadeDirty = false;
 let refinementBusy = false;
 const saver = createSaver({
   loadState: saved=>{Object.assign(tool,saved.tool);restoreState({...snapshot(),...saved,selected:null,selection:[]});history.past=[];history.future=[];restoreCamera(saved.view);},
   getState: () => ({...snapshot(),tool:{...tool},view:{...camera},exportTarget:document.querySelector('#export-target').value}),
-  isBusy: () => active !== null || !!frameEditor?.dragging,
+  isBusy: () => busy(),
   prepare: () => {
     finishEdit();
-    if (geometryDirty) rebuild(surface, strokes, scene);
+    surface.setDocument(strokes,layers);
+    if (geometryDirty) rebuildLayers(surface, strokes, scene, layers);
     surface.render(scene, strokes.map(stroke => stroke.settings), true);
   },
   getPreview: () => art.toDataURL('image/png'),
@@ -60,13 +67,16 @@ const saver = createSaver({
 
 
 function snapshot() {
-  return { infinite:true, scene: { ...scene }, defaults: { ...defaults }, selected,selection:[...selection],frames:frames.map(f=>({...f})),nextNumber,
-    strokes: strokes.map(s => ({ ...s, settings: { ...s.settings }, tool: { ...s.tool }, points: s.points })) };
+  return { infinite:true, layers:structuredClone(layers),activeLayerId,tool:structuredClone(tool), scene: { ...scene }, defaults: { ...defaults }, selected,selection:[...selection],frames:frames.map(f=>({...f})),nextNumber,
+    strokes: strokes.map(s => ({ ...s, settings: { ...s.settings }, tool: structuredClone(s.tool), points: s.points })) };
 }
 function syncCommands() {
   document.querySelector('#return').disabled = active !== null || !history.past.length;
   document.querySelector('#restore').disabled = active !== null || !history.future.length;
   document.querySelector('#delete').disabled = active !== null || selected === null;
+  document.querySelector('#copy-selection').disabled=active!==null||!selection.size;
+  document.querySelector('#duplicate-selection').disabled=active!==null||!selection.size;
+  document.querySelector('#paste-selection').disabled=active!==null||!clipboard?.length||activeLayer().locked||!activeLayer().visible;
   saver.update();
 }
 function finishEdit() {
@@ -77,25 +87,36 @@ function beginEdit(element) {
   if (edit?.element !== element) { finishEdit(); edit = { element, before: snapshot() }; }
   saver.markChanged();
 }
-function restoreState(state) {
+function restoreState(input) {
+  const state=normalizeEndoState(input);
   Object.assign(scene, state.scene); Object.assign(defaults, state.defaults);
-  strokes.splice(0, strokes.length, ...state.strokes.map(s => ({ ...s, settings: { ...s.settings }, tool: { ...s.tool } })));
-  selected=state.selected;selection.clear();for(const id of state.selection || (selected===null?[]:[selected]))selection.add(id);frames.splice(0,frames.length,...(state.frames||[]).map(f=>({...f})));nextNumber=state.nextNumber;
-  syncControls(); schedule({ geometry: true, shade: true });
+  for(const key of Object.keys(tool))delete tool[key];Object.assign(tool,{mode:'none',count:8,axes:'vertical',columns:3,rows:3},structuredClone(state.tool));
+  layers.splice(0,layers.length,...structuredClone(state.layers));activeLayerId=state.activeLayerId;
+  strokes.splice(0,strokes.length,...state.strokes.map(stroke=>({...stroke,settings:{...stroke.settings},tool:structuredClone(stroke.tool)})));
+  selection.clear();for(const id of state.selection||[])if(strokes[id]&&editableStroke(strokes[id]))selection.add(id);
+  selected=selection.size?[...selection].at(-1):null;frames.splice(0,frames.length,...(state.frames||[]).map(f=>({...f})));nextNumber=state.nextNumber;
+  surface.setDocument(strokes,layers);syncControls();schedule({geometry:true,shade:true});
 }
+function busy(){return active!==null||!!editGesture||!!frameEditor?.dragging||!!repeatEditor?.dragging;}
+function editableStroke(stroke){const layer=layers.find(item=>item.id===stroke.layerId);return stroke.operation!=='erase'&&layer?.visible!==false&&!layer?.locked;}
+function activeLayer(){return layers.find(layer=>layer.id===activeLayerId)||layers[0];}
+function feedback(message){document.querySelector('#export-feedback').textContent=message;}
+function commitChange(change){if(busy())return;finishEdit();const before=snapshot();change();history.commit(before,snapshot());surface.setDocument(strokes,layers);syncControls();schedule({geometry:true,shade:true});}
+function useState(next){finishEdit();const before=snapshot();restoreState(next);history.commit(before,snapshot());syncControls();}
+function selectionBounds(){const chosen=[...selection].map(id=>strokes[id]).filter(Boolean);return chosen.length?documentBounds({...snapshot(),infinite:true,strokes:chosen}):null;}
 for (const [id, action] of [['return', 'undo'], ['restore', 'redo']]) {
   document.querySelector('#' + id).addEventListener('click', () => {
-    if (active) return;
+    if (busy()) return;
     finishEdit(); const state = history[action](); if (state) restoreState(state);
   });
 }
 document.querySelector('#delete').addEventListener('click', () => {
-  if (active || selected === null) return;
+  if (busy() || selected === null) return;
   finishEdit(); const before = snapshot();
   for(const id of [...selection].sort((a,b)=>b-a))strokes.splice(id,1);selection.clear();selected=null;
   history.commit(before, snapshot()); syncControls(); schedule({ geometry: true, shade: true });
 });
-function editableSettings(){return selection.size?[...selection].map(id=>strokes[id].settings):[defaults]}
+function editableSettings(){return selection.size?[...selection].filter(id=>editableStroke(strokes[id])).map(id=>strokes[id].settings):[defaults]}
 function currentSettings() { return selected === null ? defaults : strokes[selected].settings; }
 document.addEventListener('endo-color-preset', e => {
   const preset = presetsForBrush(currentSettings().brush)[e.detail];
@@ -115,15 +136,17 @@ function schedule({ geometry = false, shade = false } = {}) {
   scheduled = true;
   requestAnimationFrame(() => {
     scheduled = false;
-    const refinementChanged = geometryDirty || shadeDirty || surface.bounds !== null || (active !== null) !== refinementBusy;
-    if (geometryDirty) rebuild(surface, strokes, scene);
+    const renderingBusy=active!==null||!!editGesture;
+    const refinementChanged = geometryDirty || shadeDirty || surface.bounds !== null || renderingBusy !== refinementBusy;
+    surface.setDocument(strokes,layers);
+    if (geometryDirty) rebuildLayers(surface, strokes, scene, layers);
     surface.render(scene, strokes.map(stroke => stroke.settings), geometryDirty || shadeDirty);
     geometryDirty = false;
     shadeDirty = false;
     highlight();
     if (refinementChanged) {
-      refinementBusy = active !== null;
-      document.dispatchEvent(new CustomEvent('endo-artboard-rendered', { detail: { strokes, scene, busy: refinementBusy } }));
+      refinementBusy = renderingBusy;
+      document.dispatchEvent(new CustomEvent('endo-artboard-rendered', { detail: { strokes, layers, scene, busy: refinementBusy } }));
     }
   });
 }
@@ -132,6 +155,9 @@ function highlight() {
   const ctx = overlay.getContext('2d');
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,overlay.width,overlay.height);
   frameEditor?.draw(ctx);
+  if(editGesture?.kind==='marquee'){
+    const a=editGesture.startScreen,b=editGesture.endScreen;ctx.save();ctx.strokeStyle='#4e7aff';ctx.fillStyle='#2455ee18';ctx.setLineDash([5,4]);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.restore();
+  }
   if(selected===null||active)return;
   for(const id of selection){
   const stroke=strokes[id];
@@ -162,7 +188,9 @@ function refreshPreview() {
 }
 
 function syncControls() {
-  const p = currentSettings();
+  const p = currentSettings(),erasing=viewport.dataset.mode==='erase';
+  document.querySelector('.brush-switch').hidden=erasing;document.querySelector('.brush-panel .section-heading').hidden=erasing;
+  document.querySelector('#eraser-help').hidden=!erasing;document.querySelector('#brush-preview').hidden=erasing;document.querySelector('.scene-card').hidden=erasing;
   document.querySelector('#color-presets').dataset.brush = p.brush || 'cromo';
   for (const button of document.querySelectorAll('.brush-switch [data-brush]')) {
     button.setAttribute('aria-pressed', String(editableSettings().every(s=>button.dataset.brush===(s.brush||'cromo'))));
@@ -170,8 +198,10 @@ function syncControls() {
   }
   for (const [key, field] of fields) {
     field.input.value = field.global ? scene[key] : (p[key] ?? (key === 'ridge' ? 55 : key === 'roughness' ? 40 : defaults[key]));
+    if(!field.global)field.input.closest('.control').hidden=false;
     if (key === 'ridge' || key === 'roughness') field.input.closest('.control').hidden = p.brush !== 'relief';
     if (key === 'density' || key === 'particleSize') field.input.closest('.control').hidden = !['sand', 'crayon', 'cement', 'dust'].includes(p.brush);
+    if(erasing&&!field.global&&key!=='width')field.input.closest('.control').hidden=true;
     field.refresh();
     const mixed=!field.global && editableSettings().some(s=>s[key]!==p[key]);field.input.closest('.control').classList.toggle('mixed',mixed);field.number.placeholder=mixed?'—':'';field.number.title=mixed?'Mixed values. Enter a value to apply it to all selected strokes.':'';if(mixed)field.number.value='';
     field.input.disabled = active !== null;
@@ -179,7 +209,7 @@ function syncControls() {
   }
   for (const key of ['primary', 'shadow', 'contrast']) {
     const input = document.querySelector(`#${key}`);
-    input.value = p[key]; input.disabled = active !== null;
+    input.value = p[key]; input.disabled = active !== null||(!selection.size&&activeLayer().locked);
   }
   for (const button of modeButtons) button.disabled = active !== null;
   syncTools();
@@ -187,8 +217,8 @@ function syncControls() {
   const label=selection.size>1?`${selection.size} strokes selected`:selected===null?'New stroke':`Stroke ${strokes[selected].number} selected`;
   document.querySelector('#stroke-scope').textContent=label;
   const scopeHelp=document.querySelector('#stroke-scope-help');
-  if(scopeHelp)scopeHelp.textContent=selected===null?'Brush and color changes apply to new strokes.':'Brush and color changes apply to the selection. Esc clears it.';
-  frameEditor?.refresh();
+  if(scopeHelp)scopeHelp.textContent=activeLayer().locked?'This layer is locked. Unlock it or choose another layer.':selected===null?'New strokes on '+activeLayer().name+'. Select a stroke to edit it.':'Changes apply to the selected strokes. Esc edits new strokes.';
+  frameEditor?.refresh();repeatEditor?.refresh();editor?.render();
   refreshPreview();
   highlight();
   document.dispatchEvent(new Event('endo-settings'));
@@ -248,8 +278,16 @@ for (const button of document.querySelectorAll('.brush-switch [data-brush]')) bu
 for (const key of ['primary', 'shadow', 'contrast']) {
   document.querySelector(`#${key}`).addEventListener('input', e => {
     beginEdit(e.target);
-    for(const settings of editableSettings())settings[key]=e.target.value;
-    refreshPreview();
+    for(const settings of editableSettings()){
+      settings[key]=e.target.value;
+      if(key==='primary'&&document.querySelector('#color-link').checked){
+        const rgb=[1,3,5].map(i=>parseInt(e.target.value.slice(i,i+2),16));
+        const hex=values=>'#'+values.map(value=>Math.round(value).toString(16).padStart(2,'0')).join('');
+        settings.shadow=hex(rgb.map(value=>value*.22));settings.contrast=hex(rgb.map(value=>value*.35+255*.65));
+      }
+    }
+    for(const role of ['primary','shadow','contrast'])document.querySelector('#'+role).value=currentSettings()[role];
+    document.dispatchEvent(new Event('endo-colors-changed'));refreshPreview();
     if (selected !== null) schedule({ shade: true });
   });
   document.querySelector(`#${key}`).addEventListener('change', finishEdit);
@@ -258,38 +296,47 @@ for (const key of ['primary', 'shadow', 'contrast']) {
 
 function point(e,finish=false){return {...toWorld(e.clientX,e.clientY),time:e.timeStamp,pressure:e.pointerType==='pen'?Math.max(.08,e.pressure):1,finish};}
 
-art.addEventListener('pointerdown', e => {
-  if(active!==null||e.button!==0||['pan','frame'].includes(viewport.dataset.mode))return;
-  if (viewport.dataset.mode === 'select') {
-    e.preventDefault(); finishEdit();
-    if (geometryDirty) { rebuild(surface, strokes, scene); geometryDirty = false; shadeDirty = true; }
-    const rect=art.getBoundingClientRect(),p={x:(e.clientX-rect.left)*art.width/rect.width,y:(e.clientY-rect.top)*art.height/rect.height};
-    const tolerance=6;
-    let best = Infinity, picked = null;
-    for (let y = Math.max(0, Math.floor(p.y) - tolerance); y <= Math.min(art.height - 1, Math.ceil(p.y) + tolerance); y++) {
-      for (let x = Math.max(0, Math.floor(p.x) - tolerance); x <= Math.min(art.width - 1, Math.ceil(p.x) + tolerance); x++) {
-        const id = surface.owner[y * art.width + x], distance = (x - p.x) ** 2 + (y - p.y) ** 2;
-        if (id >= 0 && distance <= tolerance ** 2 && distance < best) { picked = id; best = distance; }
-      }
-    }
-    if(e.shiftKey){if(picked!==null){if(selection.has(picked))selection.delete(picked);else selection.add(picked)}}else{selection.clear();if(picked!==null)selection.add(picked)}selected=selection.size?[...selection].at(-1):null;syncControls();schedule();return;
+function pickStroke(event){
+  if(geometryDirty){rebuildLayers(surface,strokes,scene,layers);geometryDirty=false;surface.render(scene,strokes.map(s=>s.settings),true);}
+  const rect=art.getBoundingClientRect(),p={x:(event.clientX-rect.left)*art.width/rect.width,y:(event.clientY-rect.top)*art.height/rect.height};let best=Infinity,picked=null;
+  for(let y=Math.max(0,Math.floor(p.y)-6);y<=Math.min(art.height-1,Math.ceil(p.y)+6);y++)for(let x=Math.max(0,Math.floor(p.x)-6);x<=Math.min(art.width-1,Math.ceil(p.x)+6);x++){
+    const id=surface.owner[y*art.width+x],distance=(x-p.x)**2+(y-p.y)**2;
+    if(id>=0&&editableStroke(strokes[id])&&distance<=36&&distance<best){picked=id;best=distance;}
   }
-  e.preventDefault();
-  finishEdit(); const before = snapshot();
-  // Flush any queued geometry edit before an incremental stroke is added.
-  if (geometryDirty) { rebuild(surface, strokes, scene); geometryDirty = false; shadeDirty = true; }
-  const settings = { ...currentSettings() };
-  const id = strokes.length;
-  const strokeTool = { ...tool };
-  const p = point(e);
-  strokes.push({ number: nextNumber++, settings, tool: strokeTool, points: [] });
-  selection.clear();selection.add(id);selected=id;
-  active = { before, pointerId: e.pointerId, id, builder: new StrokeBuilder(symmetrySurface(surface, strokeTool, p), { ...settings, ...scene }, id) };
-  art.setPointerCapture(e.pointerId);
-  strokes[id].points.push(p); active.builder.add(p);
-  syncControls(); schedule();
+  return picked;
+}
+art.addEventListener('pointerdown', e => {
+  if(active!==null||editGesture||e.button!==0||['pan','frame','repeat-region'].includes(viewport.dataset.mode))return;
+  if(['select','marquee'].includes(viewport.dataset.mode)){
+    e.preventDefault();finishEdit();const picked=viewport.dataset.mode==='marquee'?null:pickStroke(e);
+    if(e.shiftKey&&picked!==null){if(selection.has(picked))selection.delete(picked);else selection.add(picked);}
+    else if(picked!==null&&!selection.has(picked)){selection.clear();selection.add(picked);}
+    else if(picked===null&&!e.shiftKey)selection.clear();
+    selected=selection.size?[...selection].at(-1):null;if(selected!==null)activeLayerId=strokes[selected].layerId;
+    const rect=art.getBoundingClientRect(),startScreen={x:e.clientX-rect.left,y:e.clientY-rect.top};
+    editGesture={id:e.pointerId,kind:picked!==null?'move':'marquee',start:toWorld(e.clientX,e.clientY),startScreen,endScreen:startScreen,before:snapshot(),originals:[...selection].map(id=>[id,structuredClone(strokes[id])]),additive:e.shiftKey,initial:[...selection],moved:false};
+    art.setPointerCapture(e.pointerId);syncControls();schedule();return;
+  }
+  const layer=activeLayer();if(layer.locked||!layer.visible){feedback(layer.locked?'Unlock the active layer to draw.':'Show the active layer to draw.');return;}
+  e.preventDefault();finishEdit();const before=snapshot();
+  if(geometryDirty){rebuildLayers(surface,strokes,scene,layers);geometryDirty=false;shadeDirty=true;}
+  const erasing=viewport.dataset.mode==='erase',settings={...defaults,...(erasing?{brush:'cromo',variation:0,speed:0}:{})};
+  const id=strokes.length,strokeTool=erasing?{mode:'none'}:structuredClone(tool),p=point(e);
+  if(!erasing&&tool.mode!=='none'){const box=toolRegion(tool);if(p.x<box.x||p.y<box.y||p.x>box.x+box.width||p.y>box.y+box.height){feedback('Start inside the repeat area. Press R to move or resize it.');return;}}
+  const stroke={number:nextNumber++,layerId:layer.id,operation:erasing?'erase':'paint',settings,tool:strokeTool,points:[]};strokes.push(stroke);
+  selection.clear();selected=null;
+  surface.setDocument(strokes,layers);
+  active={before,pointerId:e.pointerId,id,builder:new StrokeBuilder(symmetrySurface(surface.strokeSurface(stroke,id),strokeTool,p),{...settings,...scene},id)};
+  art.setPointerCapture(e.pointerId);stroke.points.push(p);active.builder.add(p);syncControls();schedule();
 });
 art.addEventListener('pointermove', e => {
+  if(editGesture?.id===e.pointerId){
+    const current=toWorld(e.clientX,e.clientY),dx=current.x-editGesture.start.x,dy=current.y-editGesture.start.y;
+    editGesture.moved||=Math.hypot(dx,dy)*camera.scale>3;
+    if(editGesture.kind==='move'&&editGesture.moved){for(const[id,original]of editGesture.originals)strokes[id]=translateStroke(original,dx,dy);schedule({geometry:true,shade:true});}
+    else{const rect=art.getBoundingClientRect();editGesture.endScreen={x:e.clientX-rect.left,y:e.clientY-rect.top};highlight();}
+    return;
+  }
   if (active?.pointerId !== e.pointerId) return;
   const events = e.getCoalescedEvents?.() || [];
   for (const event of events.length ? events : [e]) {
@@ -299,6 +346,18 @@ art.addEventListener('pointermove', e => {
   schedule();
 });
 function end(e) {
+  if(editGesture?.id===e.pointerId){
+    const gesture=editGesture;editGesture=null;
+    if(art.hasPointerCapture(gesture.id))art.releasePointerCapture(gesture.id);
+    if(e.type!=='pointerup'&&gesture.kind==='move'){restoreState(gesture.before);return;}
+    if(gesture.kind==='move'&&gesture.moved)history.commit(gesture.before,snapshot());
+    if(gesture.kind==='marquee'&&gesture.moved){
+      const a=gesture.start,b=toWorld(e.clientX,e.clientY),box={x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)};
+      selection.clear();for(const id of gesture.additive?gesture.initial:[])selection.add(id);
+      strokes.forEach((stroke,id)=>{if(!editableStroke(stroke))return;const bounds=documentBounds({layers,strokes:[stroke],infinite:true});if(bounds.x<=box.x+box.width&&bounds.y<=box.y+box.height&&bounds.x+bounds.width>=box.x&&bounds.y+bounds.height>=box.y)selection.add(id);});selected=selection.size?[...selection].at(-1):null;
+    }
+    syncControls();schedule();return;
+  }
   if (active?.pointerId !== e.pointerId) return;
   if (e.type === 'pointerup') {
     const p = point(e, true);
@@ -311,6 +370,10 @@ function end(e) {
   syncControls(); schedule();
 }
 function syncTools() {
+  for(const key of ['count','columns','rows']){
+    const input=document.querySelector('#tool-'+key),number=document.querySelector('#tool-'+key+'-value');input.value=tool[key];if(document.activeElement!==number)number.value=tool[key];input.style.setProperty('--fill',((tool[key]-Number(input.min))/(Number(input.max)-Number(input.min))*100)+'%');
+  }
+  document.querySelector('#tool-axes').value=tool.axes;
   for (const button of toolButtons) {
     button.setAttribute('aria-pressed', String(tool.mode === button.dataset.tool));
     button.disabled = active !== null;
@@ -321,12 +384,13 @@ function syncTools() {
   for (const input of document.querySelectorAll('#tool-settings input, #tool-settings select')) input.disabled = active !== null;
   const mode = tool.mode === 'none' ? 'Freehand' : tool.mode[0].toUpperCase() + tool.mode.slice(1);
   document.querySelector('.session').textContent = mode + ' · ' + (brushNames[currentSettings().brush] || 'Chrome');
-  drawGuides();
+  viewport.dataset.repetition=tool.mode;drawGuides();
   saver.update();
 }
 function drawGuides() {
-  const ctx=guides.getContext('2d'),w=960,h=850;
+  const ctx=guides.getContext('2d'),region=toolRegion(tool),w=region.width,h=region.height;
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,guides.width,guides.height);ctx.setTransform(camera.scale,0,0,camera.scale,camera.x,camera.y);
+  ctx.save();ctx.translate(region.x,region.y);ctx.beginPath();ctx.rect(0,0,w,h);ctx.clip();
   ctx.strokeStyle = 'rgba(0,85,255,.22)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]); ctx.beginPath();
   if (tool.mode === 'mandala') {
     const r = Math.hypot(w, h);
@@ -341,11 +405,10 @@ function drawGuides() {
     for (let i = 1; i < tool.columns; i++) { ctx.moveTo(w * i / tool.columns, 0); ctx.lineTo(w * i / tool.columns, h); }
     for (let i = 1; i < tool.rows; i++) { ctx.moveTo(0, h * i / tool.rows); ctx.lineTo(w, h * i / tool.rows); }
   }
-  ctx.stroke();
+  ctx.stroke();ctx.restore();repeatEditor?.draw(ctx);
 }
 for (const button of toolButtons) button.addEventListener('click', () => {
-  tool.mode = tool.mode === button.dataset.tool ? 'none' : button.dataset.tool;
-  syncTools();
+  commitChange(()=>{tool.mode=tool.mode===button.dataset.tool?'none':button.dataset.tool;if(tool.mode!=='none'&&!tool.region)tool.region=repeatEditor?.visible()||{x:0,y:0,width:960,height:850};});
 });
 for (const key of ['count', 'columns', 'rows']) {
   const input = document.querySelector('#tool-' + key), output = document.querySelector('#tool-' + key + '-value');
@@ -354,21 +417,23 @@ for (const key of ['count', 'columns', 'rows']) {
     input.style.setProperty('--fill', ((tool[key] - Number(input.min)) / (Number(input.max) - Number(input.min)) * 100) + '%');
     syncTools();
   };
-  input.addEventListener('input', update);
+  input.addEventListener('input',()=>{if(busy())return;beginEdit(input);update();});
+  input.addEventListener('change',finishEdit);
   output.addEventListener('input', () => {
     if (!Number.isFinite(output.valueAsNumber)) return;
-    input.value = Math.max(Number(input.min), Math.min(Number(input.max), output.valueAsNumber)); update();
+    beginEdit(output);input.value = Math.max(Number(input.min), Math.min(Number(input.max), output.valueAsNumber)); update();
   });
-  output.addEventListener('blur', () => { output.value = input.value; });
+  output.addEventListener('change',finishEdit);output.addEventListener('blur', () => { finishEdit();output.value = input.value; });
   output.addEventListener('keydown', e => { if (e.key === 'Enter') output.blur(); });
   update();
 }
-document.querySelector('#tool-axes').addEventListener('change', e => { tool.axes = e.target.value; syncTools(); });
+document.querySelector('#tool-axes').addEventListener('change', e => commitChange(()=>{tool.axes=e.target.value;}));
 for (const button of modeButtons) button.addEventListener('click', () => {
-  if (active) return;
+  if (busy()) return;
   finishEdit(); viewport.dataset.mode = button.dataset.mode;
   for (const b of modeButtons) b.setAttribute('aria-pressed', String(b === button));
-  viewport.classList.remove('dragging');
+  if(['draw','erase'].includes(button.dataset.mode)){selection.clear();selected=null;}syncControls();
+  viewport.classList.remove('dragging');frameEditor?.refresh();repeatEditor?.refresh();drawGuides();
 });
 art.addEventListener('pointerup', end);
 art.addEventListener('pointercancel', end);
@@ -391,11 +456,63 @@ document.addEventListener('endo-camera-change',()=>{
 guides.width=art.width;guides.height=art.height;drawGuides();schedule({geometry:true,shade:true});
 
 frameEditor=createFrames({frames,art,overlay,viewport,camera,toWorld,getState:snapshot,
- commit:change=>{if(active)return;finishEdit();const before=snapshot();change();history.commit(before,snapshot());syncControls();highlight();},
- onChange:()=>{syncControls();highlight();},onPaint:highlight,getBusy:()=>active!==null,getSelection:()=>[...selection].map(id=>strokes[id])});
+ commit:change=>{if(active||editGesture||repeatEditor?.dragging)return;finishEdit();const before=snapshot();change();history.commit(before,snapshot());syncControls();highlight();},
+ onChange:()=>{syncControls();highlight();},onPaint:highlight,getBusy:()=>active!==null||!!editGesture||!!repeatEditor?.dragging,getSelection:()=>[...selection].map(id=>strokes[id])});
 frameEditor.refresh();highlight();
 document.addEventListener('keydown',e=>{
- if(active||frameEditor.dragging||e.target.closest('input,select,textarea,[contenteditable=true]'))return;
- if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='a'&&viewport.dataset.mode==='select'){e.preventDefault();finishEdit();selection.clear();strokes.forEach((_,i)=>selection.add(i));selected=strokes.length?strokes.length-1:null;syncControls();highlight();}
- if(e.key==='Escape'){finishEdit();selection.clear();selected=null;syncControls();highlight();}
+ if(active||frameEditor.dragging||repeatEditor?.dragging||e.target.closest('input,select,textarea,[contenteditable=true]'))return;
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='a'&&viewport.dataset.mode==='select'){e.preventDefault();finishEdit();selection.clear();strokes.forEach((stroke,i)=>{if(editableStroke(stroke))selection.add(i)});selected=selection.size?[...selection].at(-1):null;syncControls();highlight();}
+ if(e.key==='Escape'){if(editGesture){const before=editGesture.before,id=editGesture.id;editGesture=null;if(art.hasPointerCapture(id))art.releasePointerCapture(id);restoreState(before);}finishEdit();selection.clear();selected=null;syncControls();highlight();}
 });
+
+repeatEditor=createRepeatArea({tool,art,viewport,camera,toWorld,commit:commitChange,onPaint:drawGuides,getBusy:()=>active!==null||!!editGesture||!!frameEditor?.dragging,getSelectionBounds:selectionBounds});
+function layerAction(action,data={}){
+ if(action==='finish-edit'){finishEdit();syncControls();return;}
+ if(busy())return;
+ const layer=activeLayer();
+ if(action==='activate-layer'){if(activeLayerId===data.id&&!selection.size)return;finishEdit();activeLayerId=data.id;selection.clear();selected=null;syncControls();saver.update();return;}
+ if(action==='add-layer'){useState(addLayer(snapshot()));return;}
+ if(action==='duplicate-layer'){useState(duplicateLayer(snapshot(),layer.id));return;}
+ if(action==='delete-layer'){if(layers.length>1)useState(removeLayer(snapshot(),layer.id));return;}
+ if(action==='layer-up'||action==='layer-down'){useState(reorderLayer(snapshot(),layer.id,action==='layer-up'?1:-1));return;}
+ if(action==='selection-to-layer'){
+  if(!selection.size)return;let next=addLayer(snapshot(),{name:'Selection'});next=moveSelectionToLayer(next,[...selection],next.activeLayerId);useState(next);return;
+ }
+ if(action==='layer-opacity'){const wasEmpty=layer.opacity===0;beginEdit(data.element);layer.opacity=data.value;surface.setDocument(strokes,layers);schedule({geometry:wasEmpty&&data.value>0,shade:true});return;}
+ if(action==='filter-input'){if(layer.locked)return;const filter=layer.filters.find(f=>f.id===data.id);if(filter){beginEdit(data.element);filter[data.key]=data.value;surface.setDocument(strokes,layers);schedule({shade:true});}return;}
+ commitChange(()=>{
+  if(action==='layer-visible'){const item=layers.find(l=>l.id===data.id);item.visible=!item.visible;if(!item.visible){for(const id of [...selection])if(strokes[id].layerId===item.id)selection.delete(id);selected=selection.size?[...selection].at(-1):null;}}
+  if(action==='layer-lock'){const item=layers.find(l=>l.id===data.id);item.locked=!item.locked;if(item.locked){for(const id of [...selection])if(strokes[id].layerId===item.id)selection.delete(id);selected=selection.size?[...selection].at(-1):null;}}
+  if(action==='rename-layer')layers.find(l=>l.id===data.id).name=data.name;
+  if(action==='add-filter'&&!layer.locked&&layer.filters.length<8)layer.filters.push({id:crypto.randomUUID(),type:data.type,enabled:true,amount:128,scale:2});
+  if(action==='filter-toggle'&&!layer.locked){const filter=layer.filters.find(f=>f.id===data.id);filter.enabled=!filter.enabled;}
+  if(action==='filter-remove'&&!layer.locked)layer.filters=layer.filters.filter(f=>f.id!==data.id);
+ });
+}
+editor=createEditorUI({getState:()=>({...snapshot(),selection:[...selection]}),onAction:layerAction,getBusy:busy});
+function copySelection(){if(busy()||!selection.size)return;clipboard=[...selection].map(id=>structuredClone(strokes[id]));feedback('Copied '+clipboard.length+' stroke'+(clipboard.length===1?'':'s'));syncCommands();}
+function pasteSelection(){
+ if(busy()||!clipboard?.length||activeLayer().locked||!activeLayer().visible)return;
+ commitChange(()=>{selection.clear();for(const source of clipboard){const stroke=translateStroke(source,20,20);stroke.layerId=activeLayerId;stroke.number=nextNumber++;strokes.push(stroke);selection.add(strokes.length-1);}selected=[...selection].at(-1);});
+}
+function duplicateSelection(){if(!busy()&&selection.size)useState(duplicateSelectedStrokes(snapshot(),[...selection]));}
+document.querySelector('#copy-selection').addEventListener('click',copySelection);
+document.querySelector('#paste-selection').addEventListener('click',pasteSelection);
+document.querySelector('#duplicate-selection').addEventListener('click',duplicateSelection);
+document.addEventListener('keydown',event=>{
+ if(event.defaultPrevented||busy()||window.basementSessionBlocked||document.querySelector('dialog[open]')||event.target.closest('input,select,textarea,[contenteditable=true]'))return;
+ const key=event.key.toLowerCase();
+ if((event.metaKey||event.ctrlKey)&&!event.altKey){
+  if(key==='c'&&selection.size){event.preventDefault();copySelection();}
+  if(key==='x'&&selection.size){event.preventDefault();copySelection();document.querySelector('#delete').click();}
+  if(key==='v'&&clipboard?.length){event.preventDefault();pasteSelection();}
+  if(key==='j'&&selection.size){event.preventDefault();duplicateSelection();}
+ }
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)&&selection.size&&!event.target.closest('[role=tablist],button')){
+  event.preventDefault();const amount=event.shiftKey?10:1,dx=event.key==='ArrowLeft'?-amount:event.key==='ArrowRight'?amount:0,dy=event.key==='ArrowUp'?-amount:event.key==='ArrowDown'?amount:0;
+  commitChange(()=>{for(const id of selection)strokes[id]=translateStroke(strokes[id],dx,dy);});
+ }
+});
+syncControls();drawGuides();
+
+window.basementEndoBusy=busy;

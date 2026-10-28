@@ -17,7 +17,7 @@ function send() {
   const rect = board.getBoundingClientRect(), viewRect = viewport.getBoundingClientRect();
   if (!rect.width || !viewRect.width || !viewRect.height) return;
   pending = false; inFlight = true;
-  worker.postMessage({ id: generation, strokes: state.strokes, scene: state.scene,
+  worker.postMessage({ id: generation, strokes: state.strokes, layers:state.layers, scene: state.scene,
     background: getComputedStyle(viewport).backgroundColor,
     view: { scale:camera.scale,x:camera.x,y:camera.y,
       width: viewport.clientWidth, height: viewport.clientHeight, dpr: window.devicePixelRatio || 1 } });
@@ -43,7 +43,7 @@ document.addEventListener('endo-artboard-rendered', ({ detail }) => {
   state = detail; busy = detail.busy; invalidate();
 });
 artboard.addEventListener('pointerdown', () => {
-  if (viewport.dataset.mode === 'draw') { busy = true; invalidate(); }
+  if (['draw','erase'].includes(viewport.dataset.mode)) { busy = true; invalidate(); }
 });
 document.addEventListener('endo-camera-change',invalidate);
 new ResizeObserver(invalidate).observe(viewport);

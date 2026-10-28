@@ -1,3 +1,4 @@
+import {normalizeEndoState,validateEndoState} from './endo-model.js';
 import {FolderWorkspace} from './folder-workspace.js';
 import {scanStorageUsage} from './storage-usage.js';
 import {validate as validateMarble} from './marble/engine.js';
@@ -158,7 +159,7 @@ export function decodeProject(text){
  return {...project,id,lastOpenedAt:timestamp(doc.library?.lastOpenedAt,fallback),...(validTimestamp(doc.library?.deletedAt)?{deletedAt:doc.library.deletedAt}:{}),createdAt:timestamp(doc.library?.createdAt,fallback),updatedAt:timestamp(doc.library?.updatedAt,fallback)};
 }
 export function projectUrl(project){return ({endo:'/',kiln:'/kiln/',tremor:'/tremor/',contour:'/contour/',foundry:'/foundry/',distortion:'/distortion/',marble:'/marble/'}[project.studio])+'?project='+encodeURIComponent(project.id)}
-export function freezeState(studio,state){const copy=structuredClone(state);delete copy.selected;delete copy.selection;if(studio==='tremor'){for(const stroke of copy.strokes)stroke.age=Math.max(0,(state.scene.frameTime||performance.now())-(stroke.createdAt??performance.now()));delete copy.scene.frameTime;}return copy}
+export function freezeState(studio,state){const copy=studio==='endo'?normalizeEndoState(state):structuredClone(state);delete copy.selected;delete copy.selection;if(studio==='tremor'){for(const stroke of copy.strokes)stroke.age=Math.max(0,(state.scene.frameTime||performance.now())-(stroke.createdAt??performance.now()));delete copy.scene.frameTime;}return copy}
 export function resumeState(project){const copy=structuredClone(project.state);copy.selected=null;copy.selection=[];if(project.studio==='tremor'){const now=performance.now();copy.scene.frameTime=now;for(const stroke of copy.strokes){stroke.createdAt=now-(stroke.age||0);delete stroke.age}}return copy}
 export function importMent(text){
  const doc=JSON.parse(text),a=doc?.artboard;
@@ -181,6 +182,24 @@ export function importMent(text){
   const options=units?.options||{},settings=a.settings||{};
   state={...settings,...options,source,uploads:a.assets?.tiles||[],tool:units?.type.split('.')[1]||settings.tool||'characters',output:!!units,selectedLayer:'output'};
   if(!['characters','tiles','cells'].includes(state.tool)||!state.shared||!state.characters||!state.tiles||!state.cells||!state.colors)throw Error('Missing Kiln settings.');
+ }else if(a.studio==='endo'){
+  if(!a.layers.length||a.layers.length>64)throw Error('The Artboard layers are invalid.');
+  const layers=[],strokes=[];
+  for(const layer of a.layers){
+   if(!layer||typeof layer!=='object'||!Array.isArray(layer.strokes)||!['endo.cromo','endo.surface'].includes(layer.type))throw Error('The Artboard contains an invalid Endo layer.');
+   const {strokes:source,type,...metadata}=layer;layers.push(metadata);
+   for(const stroke of source){
+    if(stroke.layerId!==undefined&&stroke.layerId!==layer.id)throw Error('A stroke references an invalid layer.');
+    strokes.push({...stroke,layerId:layer.id});
+   }
+  }
+  const {strokeOrder,...config}=a.settings||{};
+  if(strokeOrder!==undefined){
+   const byNumber=new Map(strokes.map(stroke=>[stroke.number,stroke]));
+   if(!Array.isArray(strokeOrder)||strokeOrder.length!==strokes.length||new Set(strokeOrder).size!==strokes.length||strokeOrder.some(number=>!byNumber.has(number)))throw Error('The stroke order is invalid.');
+   strokes.splice(0,strokes.length,...strokeOrder.map(number=>byNumber.get(number)));
+  }
+  state=validateEndoState({...config,layers,strokes,selected:null,selection:[]});
  }else{
   const config=a.settings||{},strokes=a.layers.flatMap(l=>l.strokes||[]);
   if(strokes.length>10000||!config.scene||!config.defaults)throw Error('Missing Artboard settings.');

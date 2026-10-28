@@ -5,7 +5,31 @@ export function transformPoint(point, t) {
   return { x: t.a * point.x + t.c * point.y + t.tx, y: t.b * point.x + t.d * point.y + t.ty };
 }
 
-export function toolTransforms(tool, width, height, anchor) {
+function explicitRegion(tool) {
+  const region = tool?.region;
+  return region && [region.x, region.y, region.width, region.height].every(Number.isFinite)
+    && region.width > 0 && region.height > 0
+    ? { x: region.x, y: region.y, width: region.width, height: region.height } : null;
+}
+
+// Older strokes keep the original document region. New strokes may repeat in
+// any world-space rectangle, independently of the current camera or zoom.
+export function toolRegion(tool, width = 960, height = 850) {
+  return explicitRegion(tool) || { x: 0, y: 0, width, height };
+}
+
+export function toolTransforms(tool, width, height, anchor = { x: 0, y: 0 }) {
+  if (!tool || tool.mode === 'none') return [identity()];
+  const region = toolRegion(tool, width, height);
+  const localAnchor = { x: anchor.x - region.x, y: anchor.y - region.y };
+  return localTransforms(tool, region.width, region.height, localAnchor).map(t => ({
+    ...t,
+    tx: t.tx + region.x * (1 - t.a) - region.y * t.c,
+    ty: t.ty + region.y * (1 - t.d) - region.x * t.b,
+  }));
+}
+
+function localTransforms(tool, width, height, anchor) {
   if (!tool || tool.mode === 'none') return [identity()];
   if (tool.mode === 'mandala') {
     const copies = Math.max(2, count(tool.count, 8, 16));
@@ -46,16 +70,18 @@ export function toolTransforms(tool, width, height, anchor) {
 // One processed gesture feeds all copies into the shared surface and material ID.
 export function symmetrySurface(surface, tool, anchor) {
   const transforms = toolTransforms(tool, surface.logicalWidth || surface.w, surface.logicalHeight || surface.h, anchor);
+  const region = tool?.mode && tool.mode !== 'none' ? explicitRegion(tool) : null;
+  const clippedSettings = settings => region ? { ...settings, clipRect: region } : settings;
   return {
     set paintId(id) { surface.paintId = id; },
     dab(x, y, r, relief, settings) {
       for (const t of transforms) {
         const point = transformPoint({ x, y }, t);
-        surface.dab(point.x, point.y, r, relief, settings);
+        surface.dab(point.x, point.y, r, relief, clippedSettings(settings));
       }
     },
     segment(a, b, ra, rb, settings) {
-      for (const t of transforms) surface.segment(transformPoint(a, t), transformPoint(b, t), ra, rb, settings);
+      for (const t of transforms) surface.segment(transformPoint(a, t), transformPoint(b, t), ra, rb, clippedSettings(settings));
     },
   };
 }

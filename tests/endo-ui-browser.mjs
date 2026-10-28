@@ -67,8 +67,9 @@ try{
 
   // One inspector holds all properties; the left rail remains a quick tool switcher.
   const inspectorState=()=>run("(()=>({selected:[...document.querySelectorAll('[data-inspector-tab][aria-selected=true]')].map(t=>t.dataset.inspectorTab),visible:[...document.querySelectorAll('[data-inspector-panel]')].filter(p=>!p.hidden&&getComputedStyle(p).display!=='none').map(p=>p.dataset.inspectorPanel),tabStops:[...document.querySelectorAll('[data-inspector-tab]')].filter(t=>t.tabIndex===0).map(t=>t.dataset.inspectorTab)}))()");
-  for(const name of ['color','symmetry','areas','brush']){
+  for(const name of ['color','symmetry','filters','areas','brush']){
    await inspect(name);assert.deepEqual(await inspectorState(),{selected:[name],visible:[name],tabStops:[name]});
+   assert.equal(await run("(()=>{const button=document.querySelector('#layer-add'),r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('#layer-add')===button;})()"),true,'Layers remain accessible while inspecting '+name);
   }
   await key('ArrowRight');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'color');
   assert.deepEqual((await inspectorState()).selected,['color']);
@@ -210,12 +211,14 @@ try{
   console.log('PASS immediate and refined paper match during and after drawing at 10% zoom in both themes; source pixels stay transparent');
 
   const auditLayout=async label=>{
-   const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,rail:rect(document.querySelector('.tool-rail')),canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
+   const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,rail:rect(document.querySelector('.tool-rail')),canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),layers:rect(document.querySelector('#layers-dock')),layerList:rect(document.querySelector('#layer-list')),inspectorScroll:rect(document.querySelector('#inspector-scroll')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('.studio-header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
    assert.ok(layout.bodyWidth<=layout.width+1&&layout.htmlWidth<=layout.width+1,label+' has no horizontal page overflow: '+JSON.stringify(layout));
    assert.ok(layout.bodyHeight<=layout.height+1&&layout.htmlHeight<=layout.height+1,label+' has no page scrolling');
    assert.ok(layout.rail.width<=64,label+' keeps a narrow quick tool rail');
    assert.ok(layout.canvas.width>=layout.width-480&&layout.canvas.height>=400,label+' gives the drawing canvas the recovered sidebar space: '+JSON.stringify(layout.canvas));
-   assert.ok(layout.preview.bottom<=layout.height+1&&layout.preview.height>=70,label+' keeps the live brush preview visible');
+   assert.ok(layout.layers.bottom<=layout.height+1&&layout.layers.height>=180&&layout.layers.height<=250,label+' keeps the Layers dock visible at a useful height');
+   assert.ok(layout.layerList.height>=50&&layout.inspectorScroll.bottom<=layout.layers.y+1,label+' scrollable properties never cover the Layers dock');
+   assert.ok(layout.preview.height>=64&&layout.preview.y>=layout.inspectorScroll.y-1&&layout.preview.bottom<=layout.inspectorScroll.bottom+1,label+' exposes the preview at the top of Brush properties');
    for(const a of layout.aside)assert.ok(a.x>=-1&&a.right<=layout.width+1&&a.bottom<=layout.height+1,label+' side panel fits the viewport');
    for(const b of layout.visibleHeaderButtons)assert.ok(b.x>=-1&&b.right<=layout.width+1&&b.y>=-1&&b.bottom<=layout.header.bottom+1,label+' toolbar button fits: '+b.name);
    return layout;
@@ -237,14 +240,17 @@ try{
   assert.equal(await run("localStorage.getItem('basement-theme')"),'dark');
   await page.send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await delay(300);
   await auditLayout('Compact dark');await capture('compact');
-  for(const [name,selector] of [['color','#color-square'],['symmetry','[data-tool=grid]'],['areas','#frame-from-selection'],['brush','[data-brush=cromo]']]){
-   await inspect(name);assert.equal(await run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.x>=0&&r.right<=innerWidth&&r.y>=0&&r.bottom<=innerHeight;})()`),true,'Compact inspector exposes '+name+' controls without page scrolling');
+  for(const [name,selector] of [['color','#color-square'],['symmetry','[data-tool=grid]'],['filters','#add-filter'],['areas','#frame-from-selection'],['brush','[data-brush=cromo]']]){
+   await inspect(name);
+   await run(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);
+   assert.equal(await run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect(),scroll=document.querySelector('#inspector-scroll').getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.width>0&&r.height>0&&r.x>=0&&r.right<=innerWidth&&r.y>=scroll.y-1&&r.bottom<=scroll.bottom+1&&(hit===e||e.contains(hit));})()`),true,'Compact inspector exposes '+name+' controls above Layers without page scrolling');
+   assert.equal(await run("(()=>{const b=document.querySelector('#layer-add'),r=b.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('#layer-add')===b;})()"),true,'Layers remain accessible in compact '+name+' inspector');
   }
   await run("document.querySelector('.scene-card').open=true,document.querySelector('#scene-controls .control:last-child input[type=number]').scrollIntoView({block:'nearest'})");
-  assert.equal(await run("(()=>{const f=document.querySelector('#scene-controls .control:last-child input[type=number]'),r=f.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===f&&r.bottom<=document.querySelector('.brush-preview-card').getBoundingClientRect().top;})()"),true,'Last global control remains reachable above the fixed preview');
+  assert.equal(await run("(()=>{const f=document.querySelector('#scene-controls .control:last-child input[type=number]'),r=f.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===f&&r.bottom<=document.querySelector('#layers-dock').getBoundingClientRect().top;})()"),true,'Last global control remains reachable above the fixed Layers dock');
   await run("document.querySelector('.brush-settings-scroll').scrollTop=0");
   assert.equal(await content(),savedContent,'Responsive layout preserves the drawing');
-  console.log('PASS shared themes and compact editor fit 1512×982 and 1280×720; all inspector tabs and the fixed preview remain usable');
+  console.log('PASS shared themes and compact editor fit 1512×982 and 1280×720; all five property tabs remain usable above the fixed Layers dock');
 
   await run("document.querySelector('#project-title').value='Saved on Home',document.querySelector('#project-title').dispatchEvent(new Event('input',{bubbles:true}))");
   await home();assert.equal(await run("(await import('/project-store.js')).getProject('endo-ui-test').then(p=>p.name)"),'Saved on Home');

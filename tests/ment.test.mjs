@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import {serializeMent,documentSignature} from '../dist/ment-format.js';
+import {normalizeEndoState} from '../dist/endo-model.js';
 import {ChromeSurface,rebuild} from '../dist/engine.js';
 const state={scene:{merge:2,light:225,relief:.8,smooth:45,shine:75,grain:12},defaults:{width:28,variation:30,speed:35,primary:'#8795a8',shadow:'#10141b',contrast:'#eff5ff'},tool:{mode:'mandala',count:8,axes:'vertical',columns:3,rows:3},nextNumber:2,selected:0,strokes:[]};
 state.strokes.push({number:1,settings:{...state.defaults},tool:{...state.tool},points:[{x:30,y:40,time:0,pressure:.5,finish:false},{x:70,y:60,time:15,pressure:1,finish:true}]});
 const original=structuredClone(state),text=serializeMent(state,{id:'test',name:'Cromo',preview:'data:image/png;base64,example',savedAt:'2026-10-12T23:00:00Z'}),file=JSON.parse(text);
 assert.equal(file.format,'basement.ment');assert.equal(file.version,1);assert.equal(file.artboard.studio,'endo');assert.equal(file.artboard.layers[0].type,'endo.cromo');assert.equal(file.artboard.width,960);assert.equal(file.artboard.height,850);
-assert.deepEqual(file.artboard.layers[0].strokes,state.strokes);assert.deepEqual(file.artboard.settings.scene,state.scene);assert.deepEqual(file.artboard.settings.tool,state.tool);assert.deepEqual(state,original);
+assert.deepEqual(file.artboard.layers[0].strokes,normalizeEndoState(state).strokes);assert.deepEqual(file.artboard.settings.scene,state.scene);assert.deepEqual(file.artboard.settings.tool,state.tool);assert.deepEqual(state,original);
 const signature=documentSignature(state);state.selected=null;assert.equal(documentSignature(state),signature,'Selection is not an unsaved change');state.scene.shine=20;assert.notEqual(documentSignature(state),signature);state.scene.shine=75;assert.equal(documentSignature(state),signature,'Undo can return to the saved state');
 const ctx={clearRect(){},createImageData(w,h){return{data:new Uint8ClampedArray(w*h*4)}},putImageData(){}};
 const canvas=()=>({width:160,height:120,getContext(){return ctx}}),a=new ChromeSurface(canvas()),b=new ChromeSurface(canvas());

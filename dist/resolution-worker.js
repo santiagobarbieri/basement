@@ -1,6 +1,6 @@
-import { ChromeSurface, rebuild } from './engine.js';
+import { renderLayerDocument } from './endo-renderer.js';
 self.onmessage = async ({ data }) => {
-  const { id, strokes, scene, view, background } = data;
+  const { id, strokes, scene, view, background, layers } = data;
   try {
     let resolution = Math.max(.1, view.scale * Math.min(view.dpr, 2));
     const compute = () => {
@@ -16,12 +16,10 @@ self.onmessage = async ({ data }) => {
     const { width, height, pad } = size;
     const originX = -view.x / view.scale, originY = -view.y / view.scale;
     const canvas = new OffscreenCanvas(width + pad * 2, height + pad * 2);
-    const surface = new ChromeSurface(canvas, {
+    const surface = renderLayerDocument(canvas, strokes, scene, layers, {
       resolution, originX: originX - pad / resolution, originY: originY - pad / resolution,
       infinite:true,logicalWidth:960,logicalHeight:850,
     });
-    rebuild(surface, strokes, scene);
-    surface.render(scene, strokes.map(stroke => stroke.settings));
     // Match the live canvas paper, covering the old stroke without double alpha.
     surface.ctx.globalCompositeOperation = 'destination-over';
     surface.ctx.fillStyle = background;
