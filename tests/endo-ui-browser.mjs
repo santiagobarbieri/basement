@@ -34,211 +34,80 @@ try{
  await page.send('Emulation.setDeviceMetricsOverride',{width:1512,height:982,deviceScaleFactor:1,mobile:false});
  const run=async expression=>{const r=await page.send('Runtime.evaluate',{expression:`(async()=>(${expression}))()`,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
  const wait=async expression=>{for(let i=0;i<300;i++){try{if(await run(expression))return;}catch{}await delay(100);}throw Error('Timed out: '+expression+'; '+await run("JSON.stringify({url:location.href,status:document.querySelector('#local-status')?.textContent,feedback:document.querySelector('#export-feedback')?.textContent,dialogs:[...document.querySelectorAll('dialog[open]')].map(d=>d.textContent.slice(0,150))})"));};
- const click=async selector=>{const p=await run(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);await pointer('mousePressed',p,1);await pointer('mouseReleased',p,0);};
- const pointer=(type,point,buttons)=>page.send('Input.dispatchMouseEvent',{type,...point,button:'left',buttons,clickCount:1});
- const key=async key=>{const codes={Escape:27,Enter:13,Tab:9,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Home:36,End:35};const code=key===' '?'Space':key;await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key,code,windowsVirtualKeyCode:codes[key]||0});await page.send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:codes[key]||0});};
- const inspect=async name=>{await click(`[data-inspector-tab=${name}]`);await wait(`document.querySelector('[data-inspector-tab=${name}]').getAttribute('aria-selected')==='true'&&!document.querySelector('[data-inspector-panel=${name}]').hidden`);};
- const capture=async name=>{await run('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await delay(500);const {data}=await page.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile('/private/tmp/basement-endo-'+name+'.png',Buffer.from(data,'base64'));};
- await wait('window.basementSessionReady');
- await run(`(async()=>{localStorage.setItem('basement-theme','dark');const store=await import('/project-store.js');const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('Endo UI Test',{create:true});await store.connectProjectFolder(root);await store.putProject({id:'endo-ui-test',name:'Material studies',studio:'endo',state:await(await import('/hub/studios.js')).createInitial('endo'),createdAt:Date.now(),updatedAt:Date.now()});})()`);
- await page.send('Page.navigate',{url:origin+'/?project=endo-ui-test'});
- await wait("document.querySelector('#local-status')?.textContent.startsWith('Saved in ')&&!!window.basementStudioSession");
- await click('#zoom-fit');
- const stroke=async(brush,index)=>{
-  await inspect('brush');
-  await click('[data-mode=draw]');await key('Escape');
-  const selector=`[data-brush=${brush}]`;await run(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);await click(selector);
-  const r=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect(),s=window.basementStudioSession.capture().state;return{x:r.x,y:r.y,view:s.view,frame:s.frames.find(f=>f.id===s.activeFrameId)};})()");
-  const points=Array.from({length:40},(_,i)=>{const t=i/39,x=r.frame.x+r.frame.width*(.15+.7*t),y=r.frame.y+r.frame.height*(.2+index*.28+.05*Math.sin(t*Math.PI*3));return{x:r.x+r.view.x+x*r.view.scale,y:r.y+r.view.y+y*r.view.scale};});
-  await pointer('mousePressed',points[0],1);for(const p of points.slice(1)){await pointer('mouseMoved',p,1);await delay(12);}await pointer('mouseReleased',points.at(-1),0);
-  await wait(`window.basementStudioSession.capture().state.strokes.length===${index+1}`);
-  return points;
+ const click=async selector=>{
+  const hiddenMenus=await run(`(()=>{let node=document.querySelector(${JSON.stringify(selector)});if(!node)throw Error('Missing control: '+${JSON.stringify(selector)});const ids=[];while(node){if(node.matches('[role=menu][hidden]'))ids.unshift(node.id);node=node.parentElement;}return ids;})()`);
+  for(const id of hiddenMenus)await click(`[aria-controls="${id}"]`);
+  const p=await run(`(()=>{const element=document.querySelector(${JSON.stringify(selector)});element.scrollIntoView({block:'nearest'});const r=element.getBoundingClientRect();if(!r.width||!r.height)throw Error('Hidden control: '+${JSON.stringify(selector)});return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+  await pointer('mousePressed',p,1);await pointer('mouseReleased',p,0);
  };
- const paths=[];paths.push(await stroke('cromo',0));paths.push(await stroke('relief',1));paths.push(await stroke('sand',2));
- await click('[data-mode=draw]');await key('Escape');
- await run("document.querySelector('.brush-settings-scroll').scrollTop=0");
- await windowlessSave();
- async function windowlessSave(){await run('window.basementStudioSession.save()');await wait('!window.basementStudioSession.dirty()');}
- if(process.env.BASEMENT_ENDO_BASELINE==='1'){
-  await capture('before');console.log('PASS baseline /private/tmp/basement-endo-before.png');
- }else{
-  assert.deepEqual(await run('window.basementStudioSession.capture().state.strokes.map(s=>s.settings.brush)'),['cromo','relief','sand']);
-  console.log('PASS Endo draws three editable material strokes with real pointer input');
+ const openMenu=async name=>{if(await run(`document.querySelector('[data-menu="${name}"]').getAttribute('aria-expanded')!=='true'`))await click(`[data-menu="${name}"]`);await wait(`!document.querySelector('[data-menu-panel="${name}"]').hidden`);};
+ const pointer=(type,point,buttons)=>page.send('Input.dispatchMouseEvent',{type,...point,button:'left',buttons,clickCount:1});
+ const key=async(key,modifiers=0)=>{const codes={Escape:27,Enter:13,Tab:9,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Home:36,End:35};const code=key===' '?'Space':key;await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key,code,windowsVirtualKeyCode:codes[key]||0,modifiers});await page.send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:codes[key]||0,modifiers});};
 
-
-  // One inspector holds all properties; the left rail remains a quick tool switcher.
-  const inspectorState=()=>run("(()=>({selected:[...document.querySelectorAll('[data-inspector-tab][aria-selected=true]')].map(t=>t.dataset.inspectorTab),visible:[...document.querySelectorAll('[data-inspector-panel]')].filter(p=>!p.hidden&&getComputedStyle(p).display!=='none').map(p=>p.dataset.inspectorPanel),tabStops:[...document.querySelectorAll('[data-inspector-tab]')].filter(t=>t.tabIndex===0).map(t=>t.dataset.inspectorTab)}))()");
-  for(const name of ['color','symmetry','filters','areas','brush']){
-   await inspect(name);assert.deepEqual(await inspectorState(),{selected:[name],visible:[name],tabStops:[name]});
-   assert.equal(await run("(()=>{const button=document.querySelector('#layer-add'),r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('#layer-add')===button;})()"),true,'Layers remain accessible while inspecting '+name);
-  }
-  await key('ArrowRight');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'color');
-  assert.deepEqual((await inspectorState()).selected,['color']);
-  await key('End');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'areas');
-  await key('Home');assert.equal(await run('document.activeElement.dataset.inspectorTab'),'brush');
-  console.log('PASS one inspector panel is visible at a time; tabs work with pointer, arrows, Home and End');
-
-  const initialFrame=await run('(()=>{const s=window.basementStudioSession.capture().state;return s.frames.find(f=>f.id===s.activeFrameId)})()');
-  assert.ok(initialFrame.width>=64&&initialFrame.width<=2048&&initialFrame.height>=64&&initialFrame.height<=2048);
-  assert.equal(await run("!!document.querySelector('#draw-frame').closest('.tool-rail')"),true,'Frame tool belongs to the quick rail');
-  await inspect('areas');assert.equal(await run("document.querySelector('#frame-list .frame-entry button').getAttribute('aria-pressed')"),'true');
-  assert.equal(await run("document.querySelector('#frame-width').valueAsNumber"),initialFrame.width);
-  assert.equal(await run("document.querySelector('#frame-delete').disabled"),true,'The document retains its final drawing frame');
-  await inspect('brush');
-  console.log('PASS the finite frame and its properties stay independent of the page viewport');
-
-  for(const [shortcut,mode] of [['v','select'],['h','pan'],['f','frame'],['b','draw']]){
-   await key(shortcut);assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),mode,'Quick tool shortcut '+shortcut);
-   assert.equal(await run('document.activeElement.id'),'artboard','Tool shortcuts return focus to the canvas');
-  }
-  await run("document.querySelector('#project-title').focus()");await key('v');
-  assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),'draw','Tool shortcuts leave text inputs alone');
-  await inspect('brush');
-  console.log('PASS B / V / H / F shortcuts switch quick tools and do not intercept Artboard naming');
-
-  // A material setting belongs to the selected stroke; history preserves the others.
-  await click('[data-mode=select]');await pointer('mousePressed',paths[0][15],1);await pointer('mouseReleased',paths[0][15],0);
-  await wait("!document.querySelector('#delete').disabled&&/\\b1\\b/.test(document.querySelector('#stroke-scope').textContent)");
-  const widthSelector='#controls .control input[type=number]';
-  await run(`(()=>{const field=document.querySelector(${JSON.stringify(widthSelector)});field.value='44';field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-  assert.deepEqual(await run('window.basementStudioSession.capture().state.strokes.map(s=>s.settings.width)'),[44,28,28]);
-  await click('#return');assert.deepEqual(await run('window.basementStudioSession.capture().state.strokes.map(s=>s.settings.width)'),[28,28,28]);
-  await click('#restore');assert.deepEqual(await run('window.basementStudioSession.capture().state.strokes.map(s=>s.settings.width)'),[44,28,28]);
-  await click('#delete');assert.equal(await run('window.basementStudioSession.capture().state.strokes.length'),2);
-  await click('#return');assert.equal(await run('window.basementStudioSession.capture().state.strokes.length'),3);
-  await click('[data-mode=draw]');await key('Escape');
-  console.log('PASS selection edits one stroke; Undo, Redo and delete preserve editable history');
-
-  const content=()=>run("(await import('/ment-format.js')).documentSignature(window.basementStudioSession.capture().state)");
-  const beforeNavigation=await content(),zoom=await run('window.basementStudioSession.capture().state.view.scale');
-  await click('#zoom-in');assert.ok(await run('window.basementStudioSession.capture().state.view.scale')>zoom);
-  await click('[data-mode=pan]');
-  const panPoint=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()");
-  await pointer('mousePressed',panPoint,1);await pointer('mouseMoved',{x:panPoint.x+45,y:panPoint.y+20},1);await pointer('mouseReleased',{x:panPoint.x+45,y:panPoint.y+20},0);
-  assert.equal(await content(),beforeNavigation,'Pan and zoom never alter drawing content');
-  await click('#zoom-fit');await click('[data-mode=draw]');
-  assert.equal(await run('document.activeElement.id'),'artboard','Clicking Draw returns focus to the canvas before any pointer gesture');
-  const beforeSpace=await run('window.basementStudioSession.capture().state.view.x');
-  await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key:' ',code:'Space',windowsVirtualKeyCode:32});
-  await pointer('mousePressed',panPoint,1);await pointer('mouseMoved',{x:panPoint.x+30,y:panPoint.y+15},1);await pointer('mouseReleased',{x:panPoint.x+30,y:panPoint.y+15},0);
-  await page.send('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
-  assert.ok(Math.abs(await run('window.basementStudioSession.capture().state.view.x')-beforeSpace-30)<.001,'Space + drag pans immediately after clicking Draw');
-  assert.equal(await content(),beforeNavigation,'Space + drag never creates a paint stroke');
-  await click('#zoom-fit');await click('[data-mode=draw]');
-  console.log('PASS Draw / Select / Pan, Space + drag and zoom keep viewport changes separate from content');
-
-  // Manual Save must commit the library copy, independently of exporting a download.
-  await run("document.querySelector('#project-title').value='Endo material studies',document.querySelector('#project-title').dispatchEvent(new Event('input',{bubbles:true}))");
-  await delay(750);
-  assert.equal(await run("(await import('/project-store.js')).getProject('endo-ui-test').then(p=>p.name)"),'Material studies');
-  await click('.folder-studio-tools button');
-  await wait("!window.basementStudioSession.dirty()&&document.querySelector('#local-status').textContent.startsWith('Saved in ')");
-  assert.equal(await run("(await import('/project-store.js')).getProject('endo-ui-test').then(p=>p.name)"),'Endo material studies');
-  assert.equal(await run("document.querySelector('.folder-studio-tools').closest('header')!==null"),true,'Save and Folder live in the header');
-  assert.equal(await run("document.querySelector('#local-status').closest('header')!==null"),true,'Save feedback lives beside the Artboard name');
-  console.log('PASS title rename and manual Save persist to the selected folder from the header');
-
-  // Modal controls must receive real focus without moving the editor behind them.
-  await click('.folder-studio-tools button:nth-of-type(2)');await wait("document.querySelector('#folder-settings').open");
-  assert.equal(await run("document.activeElement.closest('#folder-settings')!==null"),true);
-  await key('Tab');assert.equal(await run("document.activeElement===document.body||document.activeElement.closest('#folder-settings')!==null"),true,'Tab never activates controls behind the modal');
-  await key('Escape');await wait("!document.querySelector('#folder-settings').open");
-  assert.equal(await run("document.activeElement.closest('.folder-studio-tools')!==null"),true);
-  await click('.folder-studio-tools button:nth-of-type(2)');await wait("document.querySelector('#folder-settings').open");
-  await pointer('mousePressed',{x:5,y:5},1);await pointer('mouseReleased',{x:5,y:5},0);await wait("!document.querySelector('#folder-settings').open");
-  console.log('PASS Folder dialog keeps background controls inactive and dismisses with Escape or an outside click');
-
-  // Exercise the real Export menu; intercept only the final browser download.
-  await run(`(()=>{Object.defineProperty(window,'showSaveFilePicker',{value:undefined,configurable:true});window.testDownloads=[];const click=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download){window.testDownloads.push({name:this.download,url:this.href});return;}return click.call(this);};})()`);
-  await run("document.querySelector('#export').scrollIntoView({block:'nearest'})");await click('#export');
-  await wait("!document.querySelector('#export-menu').hidden");
-  assert.equal(await run("document.activeElement.id"),'export-ment');await key('ArrowDown');assert.equal(await run("document.activeElement.id"),'export-png');
-  await key('Escape');assert.equal(await run("document.querySelector('#export-menu').hidden&&document.activeElement.id==='export'"),true);
-  await click('#export');await click('#show-export-areas');
-  await wait("document.querySelector('#export-menu').hidden&&document.querySelector('[data-inspector-tab=areas]').getAttribute('aria-selected')==='true'");
-  assert.equal(await run("!document.querySelector('[data-inspector-panel=areas]').hidden"),true,'Manage frames navigates to the inspector');
-  await inspect('brush');
-  await click('#export');await click('#export-ment');await wait('window.testDownloads.length===1');
-  const ment=await run("fetch(window.testDownloads[0].url).then(r=>r.json())");
-  assert.equal(ment.format,'basement.ment');assert.equal(ment.version,2);assert.equal(ment.artboard.id,'endo-ui-test');assert.equal(ment.artboard.name,'Endo material studies');
-  const editableStrokes=ment.artboard.layers.flatMap(layer=>layer.strokes);assert.equal(editableStrokes.length,3);assert.deepEqual(editableStrokes.map(stroke=>stroke.settings.brush),['cromo','relief','sand']);
-  assert.equal(ment.artboard.layers.filter(layer=>layer.kind==='paint'&&layer.strokes.length).length,3,'Each painted gesture has a movable layer');
-  assert.ok(ment.artboard.preview.startsWith('data:image/png;base64,'));
-  await click('#export');await click('#export-png');await wait('window.testDownloads.length===2');
-  const png=await run(`(async()=>{const blob=await(await fetch(window.testDownloads[1].url)).blob(),bytes=new Uint8Array(await blob.arrayBuffer()),view=new DataView(bytes.buffer),bitmap=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;const c=canvas.getContext('2d');c.drawImage(bitmap,0,0);const pixels=c.getImageData(0,0,canvas.width,canvas.height).data;let transparent=false,painted=false;for(let i=3;i<pixels.length;i+=4){transparent||=pixels[i]===0;painted||=pixels[i]>0;if(transparent&&painted)break;}bitmap.close();return{signature:[...bytes.slice(0,8)],width:view.getUint32(16),height:view.getUint32(20),type:blob.type,transparent,painted,name:window.testDownloads[1].name};})()`);
-  assert.deepEqual(png.signature,[137,80,78,71,13,10,26,10]);assert.equal(png.width,initialFrame.width*2);assert.equal(png.height,initialFrame.height*2);assert.equal(png.type,'image/png');assert.ok(png.transparent&&png.painted);assert.match(png.name,/\.png$/);
-  assert.equal(await run("document.querySelector('#export-menu').hidden&&document.querySelector('#export').getAttribute('aria-expanded')==='false'"),true);
-  console.log('PASS keyboard-accessible Export creates a portable .ment and a valid painted, transparent PNG');
-
-  // Frame drafts use bounded rasters and never swap in a page-sized paper bitmap.
-  const backgroundContent=await content(),backgroundView=await run('({...window.basementStudioSession.capture().state.view})');
-  await run("(await import('/zoom.js')).restoreCamera({scale:.1,x:50,y:50})");
-  for(const theme of ['dark','light']){
-   if(await run('document.documentElement.dataset.theme')!==theme)await click('#endo-theme-toggle');
-   await run('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
-   const draft=await run("(()=>{const board=document.querySelector('#artboard'),s=window.basementStudioSession.capture().state;return{quality:JSON.parse(board.dataset.frameQuality),scale:s.view.scale,overlay:getComputedStyle(document.querySelector('#resolution-view')).opacity,papers:document.querySelectorAll('#frame-backgrounds .frame-paper').length};})()");
-   assert.equal(draft.overlay,'0',theme+' does not replace the frame with an opaque refinement overlay');
-   assert.equal(draft.papers,1);assert.equal(draft.quality.length,1);assert.equal(draft.quality[0].active,true);
-   assert.ok(draft.quality[0].width*draft.quality[0].height*draft.quality[0].paintLayers<=1200000,'Active preview memory has a fixed pixel budget');
-   assert.ok(draft.quality[0].resolution<=draft.scale*.65+.001,'Editing preview uses reduced quality');
-   const start=await run("(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect(),s=window.basementStudioSession.capture().state,f=s.frames.find(f=>f.id===s.activeFrameId);return{x:r.x+s.view.x+(f.x+f.width*.4)*s.view.scale,y:r.y+s.view.y+(f.y+f.height*.5)*s.view.scale};})()");
-   await click('[data-mode=draw]');await pointer('mousePressed',start,1);await pointer('mouseMoved',{x:start.x+10,y:start.y+10},1);
-   assert.equal(await run("getComputedStyle(document.querySelector('#resolution-view')).opacity"),'0','Drawing stays on the same preview surface');
-   await pointer('mouseReleased',{x:start.x+10,y:start.y+10},0);await click('#return');
-   assert.equal(await content(),backgroundContent,'Draft regression gestures are fully undone');
-  }
-  await click('#endo-theme-toggle');await run(`(await import('/zoom.js')).restoreCamera(${JSON.stringify(backgroundView)})`);
-  await inspect('brush');
-  console.log('PASS bounded frame drafts remain stable at 10% zoom in both themes, with full-resolution PNG output');
-
-  const auditLayout=async label=>{
-   const layout=await run(`(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};return{width:innerWidth,height:innerHeight,inspectorTab:document.querySelector('[data-inspector-tab][aria-selected=true]').dataset.inspectorTab,bodyWidth:document.body.scrollWidth,bodyHeight:document.body.scrollHeight,htmlWidth:document.documentElement.scrollWidth,htmlHeight:document.documentElement.scrollHeight,rail:rect(document.querySelector('.tool-rail')),canvas:rect(document.querySelector('#canvas-viewport')),preview:rect(document.querySelector('.brush-preview-card')),layers:rect(document.querySelector('#layers-dock')),layerList:rect(document.querySelector('#layer-list')),inspectorScroll:rect(document.querySelector('#inspector-scroll')),header:rect(document.querySelector('header')),aside:[...document.querySelectorAll('main>aside')].map(rect),visibleHeaderButtons:[...document.querySelectorAll('.studio-header button')].filter(b=>!b.hidden&&getComputedStyle(b).display!=='none').map(b=>({...rect(b),name:b.getAttribute('aria-label')||b.textContent}))};})()`);
-   assert.ok(layout.bodyWidth<=layout.width+1&&layout.htmlWidth<=layout.width+1,label+' has no horizontal page overflow: '+JSON.stringify(layout));
-   assert.ok(layout.bodyHeight<=layout.height+1&&layout.htmlHeight<=layout.height+1,label+' has no page scrolling');
-   assert.ok(layout.rail.width<=64,label+' keeps a narrow quick tool rail');
-   assert.ok(layout.canvas.width>=layout.width-480&&layout.canvas.height>=400,label+' gives the drawing canvas the recovered sidebar space: '+JSON.stringify(layout.canvas));
-   assert.ok(layout.layers.bottom<=layout.height+1&&layout.layers.height>=220&&layout.layers.height<=(layout.inspectorTab==='filters'?520:360),label+' keeps the enlarged Layers dock visible at a useful height: '+JSON.stringify({layers:layout.layers,viewportHeight:layout.height,tab:layout.inspectorTab}));
-   assert.ok(layout.layerList.height>=50&&layout.inspectorScroll.bottom<=layout.layers.y+1,label+' scrollable properties never cover the Layers dock');
-   assert.ok(layout.preview.height>=64&&layout.preview.y>=layout.inspectorScroll.y-1&&layout.preview.bottom<=layout.inspectorScroll.bottom+1,label+' exposes the preview at the top of Brush properties');
-   for(const a of layout.aside)assert.ok(a.x>=-1&&a.right<=layout.width+1&&a.bottom<=layout.height+1,label+' side panel fits the viewport');
-   for(const b of layout.visibleHeaderButtons)assert.ok(b.x>=-1&&b.right<=layout.width+1&&b.y>=-1&&b.bottom<=layout.header.bottom+1,label+' toolbar button fits: '+b.name);
-   return layout;
-  };
-  await run("document.querySelector('.brush-settings-scroll').scrollTop=0");
-  await auditLayout('Desktop dark');await capture('dark');
-  const savedContent=await content();
-  const canvasPixels=await run("document.querySelector('#artboard').toDataURL('image/png')");
-  await click('#endo-theme-toggle');await wait("(document.documentElement.dataset.theme||document.body.dataset.theme)==='light'");
-  assert.equal(await run("localStorage.getItem('basement-theme')"),'light');assert.equal(await content(),savedContent);
-  assert.equal(await run("document.querySelector('#artboard').toDataURL('image/png')"),canvasPixels,'Theme changes leave the drawing pixel buffer unchanged');
-  await auditLayout('Desktop light');await capture('light');
-  const home=async()=>{await click('.main-page-link');await wait("location.pathname==='/hub/'&&!!document.querySelector('#project-list')");};
-  const reopen=async theme=>{await home();await run(`localStorage.setItem('basement-theme',${JSON.stringify(theme)})`);await page.send('Page.navigate',{url:origin+'/?project=endo-ui-test'});await wait("document.querySelector('#local-status')?.textContent.startsWith('Saved in ')");assert.equal(await content(),savedContent,'Theme reopening preserves all material settings and strokes');};
-  await reopen('light');
-  assert.equal(await run("document.documentElement.dataset.theme||document.body.dataset.theme"),'light');
-  await click('#endo-theme-toggle');
-  assert.equal(await run("document.documentElement.dataset.theme||document.body.dataset.theme"),'dark');
-  assert.equal(await run("localStorage.getItem('basement-theme')"),'dark');
-  await page.send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await delay(300);
-  await auditLayout('Compact dark');await capture('compact');
-  for(const [name,selector] of [['color','#color-square'],['symmetry','[data-tool=grid]'],['filters','#add-filter'],['areas','#new-frame-tool'],['brush','[data-brush=cromo]']]){
-   await inspect(name);
-   await run(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'nearest'})`);
-   assert.equal(await run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect(),scroll=document.querySelector('#inspector-scroll').getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.width>0&&r.height>0&&r.x>=0&&r.right<=innerWidth&&r.y>=scroll.y-1&&r.bottom<=scroll.bottom+1&&(hit===e||e.contains(hit));})()`),true,'Compact inspector exposes '+name+' controls above Layers without page scrolling');
-   assert.equal(await run("(()=>{const b=document.querySelector('#layer-add'),r=b.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('#layer-add')===b;})()"),true,'Layers remain accessible in compact '+name+' inspector');
-  }
-  await run("document.querySelector('.scene-card').open=true,document.querySelector('#scene-controls .control:last-child input[type=number]').scrollIntoView({block:'nearest'})");
-  assert.equal(await run("(()=>{const f=document.querySelector('#scene-controls .control:last-child input[type=number]'),r=f.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===f&&r.bottom<=document.querySelector('#layers-dock').getBoundingClientRect().top;})()"),true,'Last global control remains reachable above the fixed Layers dock');
-  await run("document.querySelector('.brush-settings-scroll').scrollTop=0");
-  assert.equal(await content(),savedContent,'Responsive layout preserves the drawing');
-  console.log('PASS shared themes and compact editor fit 1512×982 and 1280×720; all five property tabs remain usable above the fixed Layers dock');
-
-  await run("document.querySelector('#project-title').value='Saved on Home',document.querySelector('#project-title').dispatchEvent(new Event('input',{bubbles:true}))");
-  await home();assert.equal(await run("(await import('/project-store.js')).getProject('endo-ui-test').then(p=>p.name)"),'Saved on Home');
-  assert.deepEqual(nativeDialogs,[],'Opening, saving and returning Home never show a browser leave prompt');
-  console.log('PASS Home saves pending edits in the same tab without a browser leave prompt');
-  console.log('PASS screenshots: /private/tmp/basement-endo-{dark,light,compact}.png');
+ const visible=selector=>run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});return!!e&&!e.closest('[hidden]')&&getComputedStyle(e).visibility!=='hidden'&&e.getBoundingClientRect().width>0;})()`);
+ const closeFloating=async()=>{for(const[popup,close]of [['#color-popover','#color-popover-cancel'],['#brush-popover','#brush-popover-close'],['#filter-properties','#filter-properties-close'],['#repeat-popover','#repeat-popover-close']])if(await visible(popup))await click(close);if(await visible('#artboard-panel'))await click('#artboard-panel-close');};
+ const openBrush=async()=>{await closeFloating();await click('#open-brush-popover');await wait("!document.querySelector('#brush-popover').hidden");};
+ const field=async(selector,value,event='input')=>run(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.focus();e.value=${JSON.stringify(String(value))};e.dispatchEvent(new Event(${JSON.stringify(event)},{bubbles:true}));${event==='input'?"e.dispatchEvent(new Event('change',{bubbles:true}));":''}e.blur();})()`);
+ const capture=async name=>{await run('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');await delay(200);const{data}=await page.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile('/private/tmp/basement-endo-'+name+'.png',Buffer.from(data,'base64'));};
+ await wait('window.basementSessionReady');
+ await run(`(async()=>{localStorage.setItem('basement-theme','dark');localStorage.setItem('basement-endo-quality','high');const store=await import('/project-store.js'),folder=await(await navigator.storage.getDirectory()).getDirectoryHandle('Endo UI Test',{create:true});await store.connectProjectFolder(folder);await store.putProject({id:'endo-ui-test',name:'Material studies',studio:'endo',state:await(await import('/hub/studios.js')).createInitial('endo'),createdAt:Date.now(),updatedAt:Date.now()});})()`);
+ await page.send('Page.navigate',{url:origin+'/?project=endo-ui-test'});await wait("document.querySelector('#local-status')?.textContent.startsWith('Saved in ')&&!!window.basementStudioSession");await click('#zoom-fit');
+ const state=()=>run('window.basementStudioSession.capture().state');
+ const content=()=>run("(await import('/ment-format.js')).documentSignature(window.basementStudioSession.capture().state)");
+ const save=async()=>{await run('window.basementStudioSession.save()');await wait('!window.basementStudioSession.dirty()');};
+ const world=async(x,y)=>run(`(()=>{const s=window.basementStudioSession.capture().state,r=document.querySelector('#canvas-viewport').getBoundingClientRect();return{x:r.x+s.view.x+${x}*s.view.scale,y:r.y+s.view.y+${y}*s.view.scale};})()`);
+ const paths=[];const firstLayer=(await state()).activeLayerId;
+ for(const[brush,index]of [['round',0],['square',1],['chisel',2]]){
+  await click('.cursor-modes button[data-mode=draw]');await field('#brush-type',brush,'change');const s=await state(),f=s.frames.find(f=>f.id===s.activeFrameId);
+  const points=[];for(let i=0;i<25;i++){const t=i/24;points.push(await world(f.x+f.width*(.15+.7*t),f.y+f.height*(.2+index*.28+.05*Math.sin(t*Math.PI*3))));}
+  await pointer('mousePressed',points[0],1);for(const point of points.slice(1))await pointer('mouseMoved',point,1);await pointer('mouseReleased',points.at(-1),0);await wait(`window.basementStudioSession.capture().state.strokes.length===${index+1}`);paths.push(points);
  }
+ assert.deepEqual((await state()).strokes.map(s=>s.settings.tip),['round','square','chisel']);assert.equal((await state()).layers.filter(l=>l.kind==='paint').length,1,'Multiple strokes reuse the drawing layer');assert.ok((await state()).strokes.every(s=>s.layerId===firstLayer));await save();
+ console.log('PASS top brush selector draws three normal brush shapes into one editable layer');
+
+ assert.equal(await run("document.querySelector('#panel-settings')===null&&document.querySelector('[data-inspector-tab]')===null"),true,'Settings and its tabs are removed');
+ assert.equal(await run("document.querySelectorAll('#brush-options-bar [data-open-color]').length"),1);
+ assert.equal(await run("document.querySelector('#toolbar-colors').closest('.status-chip')!==null"),true,'Paint color belongs beside zoom');
+ assert.equal(await run("(()=>{const colors=[...document.querySelectorAll('#brush-options-bar [data-open-color]')].map(e=>e.getBoundingClientRect());return colors.every(r=>Math.abs(r.width-r.height)<=1&&r.height>=20);})()"),true,'Paint color square match the control height');
+ assert.deepEqual(await run("[...document.querySelectorAll('[data-menu]')].map(e=>e.dataset.menu)"),['edit','image','layer','select','filters','view','file']);
+ await openMenu('edit');assert.equal(await run("document.querySelector('#return').closest('[data-menu-panel]').dataset.menuPanel"),'edit');await key('ArrowRight');await wait("document.querySelector('[data-menu=image]').getAttribute('aria-expanded')==='true'");await key('ArrowDown');await key('ArrowLeft');await wait("document.querySelector('[data-menu=edit]').getAttribute('aria-expanded')==='true'");const hover=await run("(()=>{const r=document.querySelector('[data-menu=file]').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()");await pointer('mouseMoved',hover,0);await wait("document.querySelector('[data-menu=file]').getAttribute('aria-expanded')==='true'");await key('Escape');assert.equal(await run('document.activeElement.dataset.menu'),'file');
+ console.log('PASS seven menus support arrows, hover and Escape; only Preview and Layers remain on the right');
+
+ await click('.cursor-modes button[data-mode=select]');await pointer('mousePressed',paths[0][12],1);await pointer('mouseReleased',paths[0][12],0);await wait("/Stroke 1 selected/.test(document.querySelector('#stroke-scope').textContent)");await openBrush();await field('#controls [data-control=width] input[type=number]',44);await click('#brush-popover-close');assert.deepEqual((await state()).strokes.map(s=>s.settings.width),[44,24,32]);await click('#return');assert.deepEqual((await state()).strokes.map(s=>s.settings.width),[20,24,32]);await click('#restore');assert.deepEqual((await state()).strokes.map(s=>s.settings.width),[44,24,32]);await click('#delete');assert.equal((await state()).strokes.length,2);await click('#return');assert.equal((await state()).strokes.length,3);await click('.cursor-modes button[data-mode=draw]');await key('Escape');
+ const sourceBeforeView=await content();
+ const scale=(await state()).view.scale;await click('#zoom-in');assert.ok((await state()).view.scale>scale);await click('.cursor-modes button[data-mode=pan]');const pan=await world(350,350),beforePan=(await state()).view.x;await pointer('mousePressed',pan,1);await pointer('mouseMoved',{x:pan.x+30,y:pan.y+20},1);await pointer('mouseReleased',{x:pan.x+30,y:pan.y+20},0);assert.ok(Math.abs((await state()).view.x-beforePan-30)<.01);await click('#zoom-fit');await click('.cursor-modes button[data-mode=draw]');
+ const beforeSpace=(await state()).view.x;await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key:' ',code:'Space',windowsVirtualKeyCode:32});await pointer('mousePressed',pan,1);await pointer('mouseMoved',{x:pan.x+20,y:pan.y+10},1);await pointer('mouseReleased',{x:pan.x+20,y:pan.y+10},0);await page.send('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});assert.ok(Math.abs((await state()).view.x-beforeSpace-20)<.01);assert.equal(await content(),sourceBeforeView);await click('#zoom-fit');
+ const beforeWheel=(await state()).view,wheelPoint=await run("(()=>{const r=document.querySelector('#layer-list').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()");for(const modifiers of [0,2])await page.send('Input.dispatchMouseEvent',{type:'mouseWheel',...wheelPoint,deltaX:10,deltaY:35,modifiers});await delay(100);assert.deepEqual((await state()).view,beforeWheel);
+ console.log('PASS selecting and editing a gesture, Undo/Redo/Delete, Hand, Space pan and panel wheel isolation');
+
+ const quality=()=>run("JSON.parse(document.querySelector('#artboard').dataset.frameQuality)");
+ const activeQuality=async()=>{const s=await state();return(await quality()).find(q=>q.frameId===s.activeFrameId);};
+ const high=await activeQuality();await click('#render-quality-button');await click('#quality-menu [data-quality=draft]');await wait("document.querySelector('#render-quality-button').textContent.includes('Draft')");await wait(`JSON.parse(document.querySelector('#artboard').dataset.frameQuality).some(q=>q.active&&q.width*q.height<${high.width*high.height})`);const draft=await activeQuality();assert.ok(draft.width*draft.height<high.width*high.height,'Quality changes the real raster dimensions');assert.ok(draft.width*draft.height*draft.paintLayers<=1_200_000);await click('#render-quality-button');await click('#quality-menu [data-quality=high]');await wait("document.querySelector('#render-quality-button').textContent.includes('High')");await wait(`JSON.parse(document.querySelector('#artboard').dataset.frameQuality).some(q=>q.active&&q.width===${high.width}&&q.height===${high.height})`);const restored=await activeQuality();assert.equal(restored.width,high.width);assert.equal(restored.height,high.height);assert.ok(restored.width*restored.height*restored.paintLayers<=6_000_000);assert.equal(await content(),sourceBeforeView,'Quality is UI state, not document mutation');
+ console.log('PASS High/Draft quality controls rebuild the actual raster within memory budgets');
+
+ await run("window.basementOpenArtboards()");await wait("!document.querySelector('#artboard-panel').hidden");assert.equal(await run("document.querySelector('#frame-width').valueAsNumber"),(await state()).frames[0].width);assert.equal(await run("document.querySelector('#draw-frame').closest('.tool-rail')!==null"),true);assert.ok(await run("document.querySelector('#artboard-panel').textContent.includes('1080')"),'The Artboard tool exposes size presets');await capture('artboard-presets');await click('#artboard-panel-close');await wait("document.querySelector('#artboard-panel').hidden");
+ for(const[shortcut,mode]of [['v','select'],['h','pan'],['f','frame'],['b','draw']]){await run("document.querySelector('#artboard').focus()");await key(shortcut);assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),mode);}await closeFloating();await click('.cursor-modes button[data-mode=draw]');await run("document.querySelector('#project-title').focus()");await key('v');assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),'draw');
+ console.log('PASS Artboard toolbar tool, preset side panel, dimensions and tool keyboard shortcuts');
+
+ await field('#project-title','Endo material studies');await click('.folder-studio-tools [data-studio-save]');await wait("!window.basementStudioSession.dirty()");assert.equal(await run("(await(await import('/project-store.js')).getProject('endo-ui-test')).name"),'Endo material studies');assert.equal(await run("document.querySelector('#local-status').closest('.shell-topleft')!==null"),true);
+ await click('.folder-studio-tools [data-studio-folder]');await wait("document.querySelector('#folder-settings').open");await key('Tab');assert.equal(await run("document.activeElement.closest('#folder-settings')!==null||document.activeElement===document.body"),true);await key('Escape');await wait("!document.querySelector('#folder-settings').open");await wait("document.activeElement.dataset.menu==='file'");
+ await run(`(()=>{Object.defineProperty(window,'showSaveFilePicker',{value:undefined,configurable:true});window.testDownloads=[];const original=HTMLAnchorElement.prototype.click;HTMLAnchorElement.prototype.click=function(){if(this.download){window.testDownloads.push({name:this.download,url:this.href});return;}return original.call(this);};})()`);
+ await click('#export');await wait("!document.querySelector('#export-menu').hidden");assert.equal(await run('document.activeElement.id'),'export-ment');await key('ArrowDown');assert.equal(await run('document.activeElement.id'),'export-png');await key('Escape');await click('#export');await click('#export-ment');await wait('window.testDownloads.length===1');const ment=await run("fetch(window.testDownloads[0].url).then(r=>r.json())");assert.equal(ment.version,2);assert.equal(ment.artboard.layers.filter(l=>l.kind==='paint'&&l.strokes.length).length,1);assert.equal(ment.artboard.layers.flatMap(l=>l.strokes).length,3);assert.deepEqual(ment.artboard.layers.flatMap(l=>l.strokes).map(s=>s.settings.tip),['round','square','chisel']);
+ await click('#export');await click('#export-png');await wait('window.testDownloads.length===2');const png=await run("(async()=>{const blob=await(await fetch(window.testDownloads[1].url)).blob(),bitmap=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;canvas.getContext('2d').drawImage(bitmap,0,0);const p=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let clear=false,paint=false;for(let i=3;i<p.length;i+=4){clear||=p[i]===0;paint||=p[i]>0;}bitmap.close();return{type:blob.type,width:canvas.width,height:canvas.height,clear,paint};})()");const frame=(await state()).frames[0];assert.deepEqual(png,{type:'image/png',width:frame.width*2,height:frame.height*2,clear:true,paint:true});
+ console.log('PASS File Save/Folder, keyboard export, portable one-layer .ment and full-resolution PNG');
+ const savedContent=await content();await save();
+ const auditLayout=async label=>{const layout=await run("(()=>{const rect=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};return{w:innerWidth,h:innerHeight,bodyW:document.body.scrollWidth,bodyH:document.body.scrollHeight,canvas:rect(document.querySelector('#canvas-viewport')),right:rect(document.querySelector('.shell-right')),layers:rect(document.querySelector('#panel-layers')),preview:rect(document.querySelector('#panel-preview')),rail:rect(document.querySelector('.tool-rail')),header:rect(document.querySelector('.shell-header-controls')),top:rect(document.querySelector('.shell-topleft')),settings:!!document.querySelector('#panel-settings')};})()");assert.equal(layout.settings,false);assert.deepEqual([layout.canvas.x,layout.canvas.y,layout.canvas.width,layout.canvas.height],[0,0,layout.w,layout.h]);assert.ok(layout.bodyW<=layout.w+1&&layout.bodyH<=layout.h+1,label+' has no page scrolling');assert.ok(layout.layers.height>=layout.h*.55,label+' lets Layers occupy the former Settings space');assert.ok(layout.preview.bottom<=layout.layers.y+1);assert.ok(layout.top.right<=layout.header.x+1||layout.top.bottom<=layout.header.y+1,label+' header never covers the project/save pill');for(const r of [layout.right,layout.layers,layout.rail,layout.header,layout.top])assert.ok(r.x>=-1&&r.y>=-1&&r.right<=layout.w+1&&r.bottom<=layout.h+1,label+' all controls fit the window: '+JSON.stringify(r));};
+ for(const theme of ['dark','light']){if(await run('document.documentElement.dataset.theme')!==theme){await click('#endo-theme-toggle');await key('Escape');}await auditLayout(theme);await capture(theme);}
+ await page.send('Emulation.setDeviceMetricsOverride',{width:1280,height:720,deviceScaleFactor:1,mobile:false});await delay(150);await auditLayout('Compact');await capture('compact');await page.send('Emulation.setDeviceMetricsOverride',{width:1024,height:640,deviceScaleFactor:1,mobile:false});await delay(150);await auditLayout('Minimum');await capture('minimum');
+ await page.send('Emulation.setDeviceMetricsOverride',{width:1512,height:982,deviceScaleFactor:1,mobile:false});await click('#zoom-fit');
+ const panelsVisible=()=>run("['preview','layers'].every(name=>{const p=document.querySelector('#panel-'+name),r=p.getBoundingClientRect();return !p.closest('[hidden]')&&getComputedStyle(p).visibility==='visible'&&r.height>100;})");
+ for(const name of ['preview','layers']){const before=await run(`document.querySelector('#panel-${name}').getBoundingClientRect().height`);await click(`#panel-${name} .shell-panel-title`);assert.equal(await run(`document.querySelector('#panel-${name}').getBoundingClientRect().height`),before,'Panel headings cannot collapse their content');}
+ assert.equal(await run("document.querySelector('[data-panel-toggle],[data-show-panel]')===null"),true,'There are no close, collapse or visibility commands for the fixed panels');
+ await run("document.querySelector('#artboard').focus()");await key('Tab');assert.equal(await panelsVisible(),true);await key('Tab',8);assert.equal(await panelsVisible(),true,'Tab and Shift+Tab only navigate focus');
+ await save();await run("(()=>{localStorage.setItem('basement-endo-panels',JSON.stringify({preview:true,layers:true}));window.testReloadMarker=true;})()");await page.send('Page.reload');await wait("window.testReloadMarker===undefined&&document.querySelector('#local-status')?.textContent.startsWith('Saved in ')");assert.equal(await panelsVisible(),true,'Legacy collapsed preferences cannot hide either panel');assert.equal(await content(),savedContent);
+ console.log('PASS responsive themes, full-height fixed Layers/Preview, Fit and permanent visibility across clicks, keys and reopening');
+ await field('#project-title','Saved on Home');await click('.main-page-link');await wait("location.pathname==='/hub/'&&!!document.querySelector('#project-list')");assert.equal(await run("(await(await import('/project-store.js')).getProject('endo-ui-test')).name"),'Saved on Home');assert.deepEqual(nativeDialogs,[]);
+ console.log('PASS Home saves pending edits without a browser leave prompt; all source content reopens unchanged');
 }finally{
  page?.close();if(browser){await browser.send('Browser.close').catch(()=>{});browser.close();}chrome.kill();await new Promise(r=>server.close(r));await delay(500);await rm(temp,{recursive:true,force:true,maxRetries:3});
 }

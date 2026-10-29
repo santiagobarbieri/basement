@@ -49,7 +49,7 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
       if (typeof window.showSaveFilePicker === 'function') {
         const target = handle || await window.showSaveFilePicker({
           suggestedName: filename, excludeAcceptAllOption: true,
-          types: [{ description: 'Basement Artboard (.ment)', accept: { 'application/json': ['.ment'] } }],
+          types: [{ description: 'Basement Project (.ment)', accept: { 'application/json': ['.ment'] } }],
         });
         const text = serializeMent(state, { id, name: state.projectName, preview });
         writable = await target.createWritable();
@@ -115,7 +115,7 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
   let ready=false,localWriting=false,localFailed=false,localSignature=null,createdAt=Date.now(),localTimer;
   function setLocalStatus(message,saveState){
     localStatus.textContent=message;localStatus.dataset.saveState=saveState;
-    localStatus.title=saveState==='pending'?'Changes are saved to your Artboards folder after 5 seconds of inactivity.':message;
+    localStatus.title=saveState==='pending'?'Changes are saved to your Projects folder after 5 seconds of inactivity.':message;
     if(statusHost)statusHost.dataset.saveState=saveState;
   }
   function reflectLocalStatus(){
@@ -124,7 +124,7 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
     else if(signatureOf(getState())!==localSignature)setLocalStatus('Unsaved changes','pending');
     else setLocalStatus(projectSavedLabel(),'saved');
   }
-  setLocalStatus('Preparing Artboard…','loading');
+  setLocalStatus('Preparing Project…','loading');
   async function persistLocal(){
     if(!ready||localWriting||isBusy())return;
     const state=structuredClone(getState()),signature=signatureOf(state);
@@ -141,15 +141,15 @@ export function createSaver({ getState: getRawState, prepare, isBusy, getPreview
   (async()=>{
     try{
       if(new URLSearchParams(location.search).has('project')){
-        setLocalStatus('Opening Artboard…','loading');const project=await getProject(id);
-        if(!project||project.studio!==studio)throw Error('This Artboard is not available in your folder.');
+        setLocalStatus('Opening Project…','loading');const project=await getProject(id);
+        if(!project||project.studio!==studio)throw Error('This Project is not available in your folder.');
         titleInput.value=project.name;filename=safeFilename()+'.ment';createdAt=project.createdAt;await loadState(resumeState(project));document.title=title()+' · Endo';
         localSignature=signatureOf(getState());setLocalStatus(projectSavedLabel(),'saved');
       }
       ready=true;persistLocal();
     }catch(error){localFailed=true;setLocalStatus(error.message,'error');button.disabled=true;titleInput.disabled=true;const editor=document.querySelector('main');if(editor)editor.inert=true;}
   })();
-  registerStudioSession({save:async()=>{if(!ready)throw Error(localStatus.textContent||'Artboard is not ready.');prepare();while(localWriting)await new Promise(r=>setTimeout(r,20));await persistLocal();if(signatureOf(getState())!==localSignature)throw Error(localStatus.textContent||'Finish the current action before saving.');},capture:()=>({id,name:title(),studio,state:freezeState(studio,getState()),preview:getPreview(),createdAt,updatedAt:Date.now()}),dirty:()=>ready&&signatureOf(getState())!==localSignature});
+  registerStudioSession({save:async()=>{if(!ready)throw Error(localStatus.textContent||'Project is not ready.');prepare();while(localWriting)await new Promise(r=>setTimeout(r,20));await persistLocal();if(signatureOf(getState())!==localSignature)throw Error(localStatus.textContent||'Finish the current action before saving.');},capture:()=>({id,name:title(),studio,state:freezeState(studio,getState()),preview:getPreview(),createdAt,updatedAt:Date.now()}),dirty:()=>ready&&signatureOf(getState())!==localSignature});
   // Save before leaving via Main Page; if storage fails, keep the work open.
   document.querySelector('.main-page-link')?.addEventListener('click',async event=>{
     event.preventDefault();if(!ready){location.href='/hub/';return;}if(isBusy()&&signatureOf(getState())===localSignature){location.href='/hub/';return;}const started=performance.now();while(isBusy()&&performance.now()-started<15000)await new Promise(r=>setTimeout(r,30));if(isBusy())return;while(localWriting)await new Promise(r=>setTimeout(r,20));

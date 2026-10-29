@@ -1,2 +1,2 @@
-// Layout is defined by the tool rail and the Properties inspector.
-// Only the active inspector content scrolls; tool and tab labels live in the markup.
+// The Endo shell floats over the full viewport. zoom.js and frames.js use
+// window.basementCanvasInsets() so Fit leaves room for visible panels.

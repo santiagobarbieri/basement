@@ -1,5 +1,12 @@
 # Basement Beta 2.0 — estado actual
 
+## Desarrollo local de Endo — 29 Oct 2026
+
+Sin commits, push ni publicación, por pedido de Santi. Punto de retorno: 787b10f. Se retiró Settings; Layers ocupa su espacio, admite selección múltiple y acciones en lote. Cada gesto se pinta en la capa activa, con nuevas capas manuales; pintar sobre un ajuste crea un único destino encima. Pinceles normales con ocho presets y color plano se controlan arriba; los seis materiales ahora se aplican por capa desde Blending Options. Miniaturas reales y menú con clic izquierdo permiten rasterizar, combinar, duplicar y borrar. New Layer, Blending Options y Artboards ocupan temporalmente la columna derecha hasta cerrar o crear. F abre presets y propiedades de artboards. Los filtros se editan individualmente desde Layers, con un catálogo de 14 efectos que incluye Brightness, Contrast y texturas de pintura.
+
+High es el valor inicial, con render Retina y presupuesto de 6 M píxeles; Standard y Draft permiten reducir calidad/costo. PNG reconstruye originales a 2× independientemente del preview. Formato Endo .ment v2, biblioteca y otros Studios conservados. Ver docs/studios/endo.md y el análisis inicial de integración por capa en docs/studios/endo-4-tremor-analysis.md. La fusión con Tremor todavía no se implementa.
+
+
 27 Oct 2026. Beta 2.0 publicada en https://basement-two-gamma.vercel.app/. Código en https://github.com/santiagobarbieri/basement, rama main, con publicación automática en Vercel. Historial anterior conservado; etiqueta desktop-before-beta-2-2026-10-27.
 
 Hub con siete Studios: Endo, Kiln, Tremor, Foundry, Contour, Marble y Distortion. Biblioteca de Artboards con grilla/lista, búsqueda, filtros, selección múltiple, creación en dos pasos, perfil local y temas. Export, Import y Trash están junto a Search en la barra superior, como en la última referencia. Studios / Apps, About y Contact permanecen en Coming soon.

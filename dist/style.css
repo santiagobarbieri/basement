@@ -144,3 +144,15 @@ input[type=range]{appearance:none;min-width:0;width:100%;height:26px;margin:0;bo
 
 /* Adjustment work gives the stack room, matching the floating-properties workflow. */
 #layers-dock{height:100%}.inspector[data-inspector=filters]{grid-template-rows:36px auto 36px minmax(150px,1fr) clamp(260px,48vh,520px)}.inspector[data-inspector=filters] #layers-dock{height:100%}
+
+/* Artboard selection remains in document coordinates; handles stay usable at any zoom. */
+#frame-transform-ui{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
+.frame-labels>[data-frame-title]{position:absolute;height:22px;padding:2px 0;border:0;border-radius:2px;background:transparent;color:var(--muted);font:11px/18px Arial,Helvetica,sans-serif;text-align:left;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:auto;cursor:move;touch-action:none}
+.frame-labels>[data-frame-title]:hover,.frame-labels>[data-frame-title].selected{color:var(--blue-text)}
+.frame-transform-box{position:absolute;border:1px solid var(--blue);pointer-events:none}
+.frame-transform-box>[data-frame-handle]{position:absolute;width:9px;height:9px;min-width:0;min-height:0;padding:0;border:1px solid var(--blue);border-radius:0;background:var(--ink);transform:translate(-50%,-50%);pointer-events:auto;touch-action:none}
+.frame-transform-box>[data-frame-handle=nw],.frame-transform-box>[data-frame-handle=se]{cursor:nwse-resize}
+.frame-transform-box>[data-frame-handle=ne],.frame-transform-box>[data-frame-handle=sw]{cursor:nesw-resize}
+.frame-transform-box>[data-frame-handle=n],.frame-transform-box>[data-frame-handle=s]{cursor:ns-resize}
+.frame-transform-box>[data-frame-handle=w],.frame-transform-box>[data-frame-handle=e]{cursor:ew-resize}
+.frame-transform-box>[data-frame-handle]:focus-visible,.frame-labels>[data-frame-title]:focus-visible{outline:2px solid var(--ink);outline-offset:3px}

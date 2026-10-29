@@ -46,7 +46,7 @@ mark.points.push(start);builder.add(start);surface.render(scene,strokes.map(stro
 const activeEntry=surface.entries.get('b');mark.points.push(end);builder.add(end,true);surface.render(scene,strokes.map(stroke=>stroke.settings));
 assert.equal(surface.entries.get('b'),activeEntry,'Appending samples does not replace the active drawing target');assert.equal(pixel(surface.image,surface.w,550,170)[3],255);
 const manyLayers=Array.from({length:64},(_,i)=>paint('many-'+i,'large')),large={id:'large',name:'Large',x:0,y:0,width:2048,height:2048,background:null};
-const bounded=new FrameSurface(canvas(100,100),{resolution:1});bounded.setDocument([],manyLayers,[large],'large');bounded.render(scene,[]);const budget=bounded.qualityInfo[0];assert.ok(budget.width*budget.height*budget.paintLayers<=1_200_000,'Active quality is bounded across the entire layer stack, not per stroke');
+const bounded=new FrameSurface(canvas(100,100),{resolution:1,quality:'draft'});bounded.setDocument([],manyLayers,[large],'large');bounded.render(scene,[]);const budget=bounded.qualityInfo[0];assert.ok(budget.width*budget.height*budget.paintLayers<=1_200_000,'Draft quality is bounded across the entire layer stack, not per stroke');
 // Dither belongs to frame coordinates and travels with the frame itself.
 const ditherFrame={id:'pattern-frame',name:'Pattern',x:125,y:173,width:320,height:256,background:null};
 const ditherLayers=[paint('pattern-paint',ditherFrame.id),adjust('pattern-adjust',ditherFrame.id,'dither')];ditherLayers[1].filter.scale=3;

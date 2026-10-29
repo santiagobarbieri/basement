@@ -29,6 +29,7 @@ export class ChromeSurface {
     this.height.fill(0);
     this.owner.fill(-1);
     this.coverage.fill(0);
+    this.flatPixels?.fill(0);this.strokeCoverage?.fill(0);this.paintSettings=[];this.legacyDirty=false;
     this.ctx.clearRect(0, 0, this.w, this.h);
     this.image.data.fill(0);
     this.bounds = null;
@@ -38,12 +39,25 @@ export class ChromeSurface {
   dab(x, y, radius, relief, settings = {}) { this.capsule({ x, y }, { x, y }, radius, radius, relief, settings); }
 
   capsule(a, b, ra, rb, relief, settings = {}) {
+    if(settings.operation!=='erase'){
+      this.paintSettings[this.paintId]=settings;
+      if(settings.brush==='basic'){
+        if(this.legacyDirty){
+          // Snapshot the shaded legacy surface before flat ink paints over it.
+          // This also supports alternating legacy and normal marks in one layer.
+          this.render({merge:settings.merge??2,light:settings.light??225,relief:settings.relief??.8,smooth:settings.smooth??0,shine:settings.shine??75,grain:settings.grain??12},this.paintSettings,true);
+          this.flatPixels??=new Uint8ClampedArray(this.w*this.h*4);this.flatPixels.set(this.image.data);this.legacyDirty=false;
+        }
+      }else this.legacyDirty=true;
+    }
     const q = this.resolution;
     const ax = (a.x - this.originX) * q, ay = (a.y - this.originY) * q;
     const bx = (b.x - this.originX) * q, by = (b.y - this.originY) * q;
     ra *= q; rb *= q;
     if (!Number.isFinite(ax + ay + bx + by + ra + rb) || Math.max(ra, rb) <= 0) return;
-    const radius = Math.max(ra, rb) + 1;
+    const basic=settings.brush==='basic',tip=basic?(settings.tip||'round'):'round',angle=(settings.angle||0)*Math.PI/180,ca=Math.cos(angle),sa=Math.sin(angle);
+    const hardness=Math.max(0,Math.min(1,(settings.hardness??100)/100)),inkOpacity=Math.max(0,Math.min(1,(settings.inkOpacity??100)/100)),inkColor=basic?hex(settings.primary||'#000000'):null;
+    const radius = Math.max(ra, rb)*(tip==='square'?1.42:1) + 1;
     const clip = settings.clipRect;
     const clipped = clip && [clip.x,clip.y,clip.width,clip.height].every(Number.isFinite) && clip.width>0 && clip.height>0;
     const x0 = Math.max(clipped ? Math.ceil((clip.x-this.originX)*q-.5) : 0, 0, this.infinite ? 0 : Math.ceil(-this.originX * q), Math.floor(Math.min(ax, bx) - radius));
@@ -55,13 +69,35 @@ export class ChromeSurface {
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const t = length ? Math.max(0, Math.min(1, ((x + .5 - ax) * dx + (y + .5 - ay) * dy) / length)) : 0;
       const r = ra + (rb - ra) * t;
-      const distance = Math.hypot(x + .5 - ax - t * dx, y + .5 - ay - t * dy);
+      const ox=x+.5-ax-t*dx,oy=y+.5-ay-t*dy;
+      const u=ox*ca+oy*sa,v=-ox*sa+oy*ca;
+      const distance=tip==='square'?Math.max(Math.abs(u),Math.abs(v)):['chisel','marker'].includes(tip)?Math.hypot(u,v/(tip==='chisel'?.24:.4)):Math.hypot(ox,oy);
       let coverage = Math.max(0, Math.min(1, r - distance + .5));
+      if(settings.brush==='basic'){
+        const normalized=distance/Math.max(.001,r);
+        if(normalized>hardness&&hardness<1)coverage*=Math.max(0,(1-normalized)/(1-hardness));
+        if(tip==='airbrush')coverage*=Math.exp(-normalized*normalized*3);
+        coverage*=inkOpacity;
+      }
       if (!coverage || r <= 0) continue;
       if (settings.operation === 'erase') {
         const i = y * this.w + x;
         this.coverage[i] *= 1 - coverage;
+        if(this.flatPixels)this.flatPixels[i*4+3]=Math.round(this.flatPixels[i*4+3]*(1-coverage));
         if (this.coverage[i] < .001) { this.coverage[i] = 0; this.height[i] = 0; this.owner[i] = -1; }
+        continue;
+      }
+      if(settings.brush==='basic'){
+        this.flatPixels??=new Uint8ClampedArray(this.w*this.h*4);this.strokeCoverage??=new Float32Array(this.w*this.h);
+        const i=y*this.w+x,j=i*4,previous=this.owner[i]===this.paintId?this.strokeCoverage[i]:0;
+        const strongest=Math.max(previous,coverage),alpha=previous<1?(strongest-previous)/(1-previous):0;
+        if(alpha>0){
+          const rgb=inkColor,under=this.flatPixels[j+3]/255,total=alpha+under*(1-alpha);
+          for(let c=0;c<3;c++)this.flatPixels[j+c]=(rgb[c]*alpha+this.flatPixels[j+c]*under*(1-alpha))/Math.max(.00001,total);
+          this.flatPixels[j+3]=Math.round(total*255);this.coverage[i]=total;
+          this.height[i]=Math.max(.001,Math.sqrt(Math.max(0,1-Math.min(1,distance/r)**2))*r*(relief||.8));
+          this.owner[i]=this.paintId;this.strokeCoverage[i]=strongest;
+        }
         continue;
       }
       const d = Math.min(distance, Math.max(0, r - .25)) / r;
@@ -131,6 +167,11 @@ export class ChromeSurface {
         const i = y * w + x, j = i * 4, z = height[i];
         if (z <= 0) { out[j + 3] = 0; continue; }
         const p = palette[this.owner[i]];
+        if(p?.brush==='basic'||(!p&&this.flatPixels)){
+          if(this.flatPixels){out[j]=this.flatPixels[j];out[j+1]=this.flatPixels[j+1];out[j+2]=this.flatPixels[j+2];out[j+3]=Math.round(this.coverage[i]*255);}
+          continue;
+        }
+        if(!p){out[j+3]=0;continue;}
         const dx = (height[y * w + Math.max(0, x - blur)] - height[y * w + Math.min(w - 1, x + blur)]) / (blur * 2);
         const dy = (height[Math.max(0, y - blur) * w + x] - height[Math.min(this.h - 1, y + blur) * w + x]) / (blur * 2);
         const length = Math.hypot(dx, dy, 1), n = (dx * lx + dy * ly) / length, nz = 1 / length;
@@ -168,8 +209,8 @@ export class StrokeBuilder {
   radius(point, speed) {
     const p = this.settings;
     return Math.max(1, p.width / 2 * point.pressure
-      * (1 + p.variation / 100 * .35 * Math.sin(this.distance / 45))
-      * (1 - Math.min(.75, speed * .22) * p.speed / 100));
+      * (1 + (p.variation??0) / 100 * .35 * Math.sin(this.distance / 45))
+      * (1 - Math.min(.75, speed * .22) * (p.speed??0) / 100));
   }
 
   add(point, finish = false) {
@@ -184,7 +225,7 @@ export class StrokeBuilder {
     }
     const travel = Math.hypot(point.x - this.raw.x, point.y - this.raw.y);
     this.distance += travel;
-    const alpha = finish ? 1 : 1 - p.smooth / 100 * .8;
+    const alpha = finish ? 1 : 1 - (p.smooth??0) / 100 * .8;
     const b = { x: this.previous.x + (point.x - this.previous.x) * alpha, y: this.previous.y + (point.y - this.previous.y) * alpha };
     const target = finish ? this.r : this.radius(point, travel / Math.max(1, point.time - this.raw.time));
     const rb = this.r + (target - this.r) * .35;

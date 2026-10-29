@@ -1,4 +1,7 @@
 import {toolTransforms,transformPoint} from './symmetry.js';
+import {validateBlending,BRUSH_TIPS} from './endo-brushes.js';
+import {validateRaster} from './endo-raster.js';
+import {FILTER_DEFINITIONS,filterDefinition} from './endo-filter-catalog.js';
 // Endo documents keep editable world-space gestures inside finite, independent frames.
 export const DEFAULT_LAYER_ID = 'layer-1';
 export const DEFAULT_FRAME_ID = 'frame-1';
@@ -10,7 +13,7 @@ export const MAX_LAYERS = 512;
 // Migration may expand valid old per-layer filter stacks into separate layers.
 const MAX_DOCUMENT_LAYERS = 1024;
 export const MAX_FILTERS = 8;
-const filterTypes = new Set(['threshold', 'dither', 'grayscale', 'invert']);
+const filterTypes = new Set(FILTER_DEFINITIONS.map(item=>item.type));
 const modes = new Set(['none', 'mandala', 'mirror', 'grid', 'mosaic']);
 const identifier = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(value);
 const finite = (value,min,max) => Number.isFinite(value) && value >= min && value <= max;
@@ -18,15 +21,15 @@ const fail = message => { throw Error(message); };
 const clone = value => structuredClone(value);
 const absent = (value,fallback) => value === undefined ? fallback : value;
 const newId = () => crypto.randomUUID();
-export function createFrame(name='Frame 1',id=newId(),options={}) {
+export function createFrame(name='Artboard 1',id=newId(),options={}) {
   return {id,name,x:options.x??0,y:options.y??0,width:options.width??960,height:options.height??850,background:options.background??null};
 }
 export function createLayer(name='Layer 1',id=newId(),frameId=DEFAULT_FRAME_ID) {
   return {id,name,frameId,kind:'paint',visible:true,locked:false,opacity:1,filters:[]};
 }
 export function createAdjustmentLayer(type='threshold',id=newId(),frameId=DEFAULT_FRAME_ID,name) {
-  const label={threshold:'Threshold',dither:'Dither',grayscale:'Grayscale',invert:'Invert'}[type]||type;
-  return {id,name:name??label,frameId,kind:'adjustment',visible:true,locked:false,opacity:1,filters:[],filter:{id:newId(),type,enabled:true,amount:128,scale:2}};
+  const definition=filterDefinition(type),label=definition?.label||type;
+  return {id,name:name??label,frameId,kind:'adjustment',visible:true,locked:false,opacity:1,filters:[],filter:{id:newId(),type,enabled:true,amount:definition?.defaultAmount??128,scale:definition?.defaultScale??2}};
 }
 export function validateRegion(region) {
   if(region==null)return;
@@ -38,12 +41,13 @@ function validateTool(tool={}) {
   for(const [key,min,max]of [['count',2,16],['columns',1,6],['rows',1,6]])if(tool[key]!==undefined&&(!Number.isInteger(tool[key])||!finite(tool[key],min,max)))fail('The repetition settings are invalid.');
   if(tool.axes!==undefined&&!['vertical','horizontal','both'].includes(tool.axes))fail('The mirror axis is invalid.');
 }
-const normalizeFilter=filter=>({...filter,enabled:absent(filter.enabled,true),amount:absent(filter.amount,128),scale:absent(filter.scale,2)});
+const normalizeFilter=filter=>{const definition=filterDefinition(filter.type);return{...filter,enabled:absent(filter.enabled,true),amount:absent(filter.amount,definition?.defaultAmount??128),scale:absent(filter.scale,definition?.defaultScale??2)};};
 function validateFilter(filter) {
-  if(!filter||!identifier(filter.id)||!filterTypes.has(filter.type)||typeof filter.enabled!=='boolean'||!finite(filter.amount,0,255)||!Number.isInteger(filter.scale)||!finite(filter.scale,1,64))fail('The Artboard contains an invalid filter.');
+  const definition=filterDefinition(filter?.type);
+  if(!filter||!identifier(filter.id)||!filterTypes.has(filter.type)||typeof filter.enabled!=='boolean'||!finite(filter.amount,definition?.amountMin??0,definition?.amountMax??255)||!Number.isInteger(filter.scale)||!finite(filter.scale,1,64))fail('The Artboard contains an invalid filter.');
 }
 function metadata(layer,index,frameId) {
-  return {id:absent(layer.id,index===0?DEFAULT_LAYER_ID:undefined),name:absent(layer.name,'Layer '+(index+1)),frameId:absent(layer.frameId,frameId),kind:absent(layer.kind,'paint'),visible:absent(layer.visible,true),locked:absent(layer.locked,false),opacity:absent(layer.opacity,1),filters:(layer.filters??[]).map(normalizeFilter),...(layer.filter?{filter:normalizeFilter(layer.filter)}:{}),...(layer.clipToLayerId!==undefined?{clipToLayerId:layer.clipToLayerId}:{})};
+  return {id:absent(layer.id,index===0?DEFAULT_LAYER_ID:undefined),name:absent(layer.name,'Layer '+(index+1)),frameId:absent(layer.frameId,frameId),kind:absent(layer.kind,'paint'),visible:absent(layer.visible,true),locked:absent(layer.locked,false),opacity:absent(layer.opacity,1),filters:(layer.filters??[]).map(normalizeFilter),...(layer.filter?{filter:normalizeFilter(layer.filter)}:{}),...(layer.clipToLayerId!==undefined?{clipToLayerId:layer.clipToLayerId}:{}),...(layer.blending?{blending:clone(layer.blending)}:{}),...(layer.raster?{raster:clone(layer.raster)}:{})};
 }
 function legacyFrame(source) {
   let left=0,top=0,right=960,bottom=850;
@@ -57,7 +61,7 @@ function legacyFrame(source) {
     }
   }
   const width=Math.max(MIN_FRAME_SIZE,Math.min(MAX_FRAME_SIZE,Math.ceil(right-left))),height=Math.max(MIN_FRAME_SIZE,Math.min(MAX_FRAME_SIZE,Math.ceil(bottom-top)));
-  return {...createFrame('Frame 1',DEFAULT_FRAME_ID,{x:Math.floor(left),y:Math.floor(top),width,height}),...(right-left>MAX_FRAME_SIZE||bottom-top>MAX_FRAME_SIZE?{legacyOverflow:true}:{})};
+  return {...createFrame('Artboard 1',DEFAULT_FRAME_ID,{x:Math.floor(left),y:Math.floor(top),width,height}),...(right-left>MAX_FRAME_SIZE||bottom-top>MAX_FRAME_SIZE?{legacyOverflow:true}:{})};
 }
 function migrateLegacy(source) {
   const previous=Array.isArray(source.frames)?source.frames:[];
@@ -67,7 +71,7 @@ function migrateLegacy(source) {
   for(const frame of previous){
     if(source.frames.length>=MAX_FRAMES)break;
     let id=frame.id;if(!identifier(id)||ids.has(id))id='legacy-frame-'+source.frames.length;ids.add(id);
-    source.frames.push(createFrame(frame.name||'Frame '+(source.frames.length+1),id,{x:frame.x,y:frame.y,width:Math.max(MIN_FRAME_SIZE,Math.min(MAX_FRAME_SIZE,frame.width)),height:Math.max(MIN_FRAME_SIZE,Math.min(MAX_FRAME_SIZE,frame.height)),background:null}));
+    source.frames.push(createFrame(frame.name||'Artboard '+(source.frames.length+1),id,{x:frame.x,y:frame.y,width:Math.max(MIN_FRAME_SIZE,Math.min(MAX_FRAME_SIZE,frame.width)),height:Math.max(MIN_FRAME_SIZE,Math.min(MAX_FRAME_SIZE,frame.height)),background:null}));
   }
   source.layers=source.layers.map(layer=>({...layer,frameId:main.id,kind:layer.kind??'paint'}));
   for(const frame of source.frames.slice(1)){const base='frame-layer-'+frame.id.slice(0,70);let id=base,n=1;while(source.layers.some(layer=>layer.id===id))id=base+'-'+n++;source.layers.push(createLayer('Layer 1',id,frame.id));}
@@ -120,6 +124,7 @@ function validateNormalized(state) {
   const ids=new Set();
   for(const layer of state.layers){
     if(!identifier(layer.id)||ids.has(layer.id)||typeof layer.name!=='string'||!layer.name.trim()||layer.name.length>80||!frameIds.has(layer.frameId)||!['paint','adjustment'].includes(layer.kind)||typeof layer.visible!=='boolean'||typeof layer.locked!=='boolean'||!finite(layer.opacity,0,1)||layer.filters.length)fail('The Artboard contains an invalid layer.');
+    if(layer.blending){if(layer.kind!=='paint')fail('Only drawing layers can have materials.');validateBlending(layer.blending);}if(layer.raster){if(layer.kind!=='paint')fail('Only drawing layers can contain raster pixels.');validateRaster(layer.raster);}
     ids.add(layer.id);if(layer.kind==='adjustment')validateFilter(layer.filter);else if(layer.filter!==undefined)fail('A paint layer cannot contain an adjustment.');
   }
   for(const frame of state.frames)if(!state.layers.some(layer=>layer.frameId===frame.id&&layer.kind==='paint'))fail('Each frame needs a paint layer.');
@@ -135,6 +140,7 @@ function validateNormalized(state) {
     const layer=state.layers.find(item=>item.id===stroke.layerId);
     if(!layer||layer.kind!=='paint'||!['paint','erase'].includes(stroke.operation))fail('A stroke references an invalid paint layer or operation.');
     if(!Array.isArray(stroke.points)||!stroke.settings||!finite(stroke.settings.width,Number.MIN_VALUE,100))fail('The Artboard contains invalid strokes.');
+    if(stroke.settings.brush==='basic'){if(stroke.settings.tip!==undefined&&!BRUSH_TIPS.has(stroke.settings.tip))fail('The brush tip is invalid.');for(const key of ['hardness','inkOpacity'])if(stroke.settings[key]!==undefined&&!finite(stroke.settings[key],0,100))fail('The brush settings are invalid.');if(stroke.settings.angle!==undefined&&!finite(stroke.settings.angle,0,360))fail('The brush angle is invalid.');}
     validateTool(stroke.tool);for(const value of Object.values(stroke.settings))if(typeof value==='number'&&!Number.isFinite(value))fail('The Artboard stroke settings contain an invalid number.');
     for(const key of ['primary','shadow','contrast'])if(!/^#[0-9a-f]{6}$/i.test(stroke.settings[key]||''))fail('The Artboard contains invalid colors.');
     total+=stroke.points.length;for(const point of stroke.points)if(![point.x,point.y,point.time,point.pressure].every(Number.isFinite)||Math.abs(point.x)>1e7||Math.abs(point.y)>1e7)fail('The Artboard contains invalid coordinates.');
@@ -150,7 +156,7 @@ export function frameLayers(state,frameId=state.activeFrameId){return state.laye
 function selectFrame(state,id){state.activeFrameId=id;state.activeLayerId=[...state.layers].reverse().find(layer=>layer.frameId===id&&layer.kind==='paint').id;state.selected=null;state.selection=[];return state;}
 export function addFrame(input,{id=newId(),name,x,y,width=960,height=850,background=null}={}){
   const state=normalizeEndoState(input);if(state.frames.length>=MAX_FRAMES)fail('The Artboard already has 32 frames.');
-  const previous=activeFrame(state);state.frames.push(createFrame(name??'Frame '+(state.frames.length+1),id,{x:x??previous.x+previous.width+80,y:y??previous.y,width,height,background}));
+  const previous=activeFrame(state);state.frames.push(createFrame(name??'Artboard '+(state.frames.length+1),id,{x:x??previous.x+previous.width+80,y:y??previous.y,width,height,background}));
   state.layers.push(createLayer('Layer 1',newId(),id));return normalizeEndoState(selectFrame(state,id));
 }
 export function removeFrame(input,id){

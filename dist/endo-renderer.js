@@ -1,10 +1,14 @@
+import {decodeRaster,rasterSignature} from './endo-raster.js';
+import {applyLayerMaterial} from './endo-material.js';
 import { ChromeSurface, StrokeBuilder } from './engine.js';
 import { symmetrySurface } from './symmetry.js';
 import { applyFilters } from './endo-filters.js';
+import {QUALITY_PRESETS,qualityMode} from './endo-quality.js';
 
 const legacyLayer = { id:'layer-1', name:'Layer 1', kind:'paint', visible:true, locked:false, opacity:1, filters:[] };
 const isAdjustment = layer => layer.kind === 'adjustment';
 const shown = layer => layer.visible !== false && Number(layer.opacity ?? 1) > 0;
+const layerSignature=layer=>({...layer,...(layer.raster?{raster:rasterSignature(layer.raster)}:{})});
 const amountOf = layer => Math.max(0, Math.min(1, Number(layer.opacity ?? 1)));
 function rasterCanvas(width, height) {
  const context={clearRect(){},putImageData(){},createImageData(w,h){return{data:new Uint8ClampedArray(w*h*4)}}};
@@ -33,12 +37,26 @@ function strokeTarget(surface,stroke,index,frame,onChange=()=>{}){
   segment(a,b,ra,rb,settings){const q=settingsFor(settings);if(!q)return;surface.paintId=index;surface.segment(a,b,ra,rb,q);onChange();}
  };
 }
+function seedRaster(surface,layer,frame){
+ if(!layer?.raster)return;
+ const raster=layer.raster,pixels=decodeRaster(raster),q=surface.resolution||1,fw=raster.logicalWidth||frame?.width||raster.width,fh=raster.logicalHeight||frame?.height||raster.height;
+ const left=(frame?.x||0)+(raster.x||0),top=(frame?.y||0)+(raster.y||0);
+ surface.flatPixels??=new Uint8ClampedArray(surface.w*surface.h*4);
+ for(let y=0;y<surface.h;y++)for(let x=0;x<surface.w;x++){
+  const wx=surface.originX+(x+.5)/q,wy=surface.originY+(y+.5)/q,sx=Math.floor((wx-left)/fw*raster.width),sy=Math.floor((wy-top)/fh*raster.height);
+  if(sx<0||sy<0||sx>=raster.width||sy>=raster.height)continue;
+  const si=(sy*raster.width+sx)*4,i=y*surface.w+x,j=i*4;
+  surface.flatPixels.set(pixels.subarray(si,si+4),j);surface.coverage[i]=pixels[si+3]/255;surface.height[i]=surface.coverage[i]>0?Math.max(.001,surface.coverage[i]*8*q):0;
+ }
+ surface.dirty(0,0,surface.w-1,surface.h-1);
+}
 function filterCoordinates(view){
  const frame=view.frame||view.options?.frame;
  return frame?{resolution:view.resolution||1,originX:(view.originX||0)-frame.x,originY:(view.originY||0)-frame.y}:view;
 }
 function paintFilters(pixels,width,height,layer,layers,view){
- let result=layer.filters?.some(filter=>filter.enabled!==false)?applyFilters(pixels,width,height,layer.filters,filterCoordinates(view)):pixels;
+ let result=applyLayerMaterial(pixels,width,height,layer,filterCoordinates(view),view.surface||view);
+ result=layer.filters?.some(filter=>filter.enabled!==false)?applyFilters(result,width,height,layer.filters,filterCoordinates(view)):result;
  // Earlier per-layer effects migrate as clipped adjustment layers. They keep
  // the original appearance until the user moves them into the common stack.
  for(const adjustment of layers){
@@ -82,13 +100,13 @@ export class LayeredSurface {
  get bounds(){return this.compositionDirty||[...this.rasters.values()].some(item=>item.surface.bounds)?[0,0,this.w-1,this.h-1]:null;}
  setDocument(strokes,layers){
   this.strokes=strokes;this.layers=Array.isArray(layers)&&layers.length?layers:[legacyLayer];
-  const signature=JSON.stringify(this.layers);if(signature!==this.layerSignature)this.compositionDirty=true;this.layerSignature=signature;
+  const signature=JSON.stringify(this.layers.map(layerSignature));if(signature!==this.layerSignature)this.compositionDirty=true;this.layerSignature=signature;
   const ids=new Set(this.layers.filter(layer=>!isAdjustment(layer)&&shown(layer)).map(layer=>layer.id));
   for(const id of this.rasters.keys())if(!ids.has(id))this.rasters.delete(id);
  }
- rasterFor(id){if(!this.rasters.has(id)){this.rasters.set(id,{surface:new ChromeSurface(rasterCanvas(this.w,this.h),this.options)});this.compositionDirty=true;}return this.rasters.get(id);}
+ rasterFor(id){if(!this.rasters.has(id)){const surface=new ChromeSurface(rasterCanvas(this.w,this.h),this.options);seedRaster(surface,this.layers.find(layer=>layer.id===id),this.options.frame);this.rasters.set(id,{surface});this.compositionDirty=true;}return this.rasters.get(id);}
  clear(){
-  for(const entry of this.rasters.values()){entry.surface.clear();entry.filtered=undefined;entry.filterSignature=undefined;}
+  for(const[id,entry]of this.rasters){entry.surface.clear();seedRaster(entry.surface,this.layers.find(layer=>layer.id===id),this.options.frame);entry.filtered=undefined;entry.filterSignature=undefined;}
   this.owner.fill(-1);this.height.fill(0);this.coverage.fill(0);this.image.data.fill(0);this.ctx.clearRect(0,0,this.w,this.h);this.compositionDirty=true;
  }
  strokeSurface(stroke,index){
@@ -97,7 +115,7 @@ export class LayeredSurface {
   return strokeTarget(this.rasterFor(layer.id).surface,stroke,index,this.options.frame,()=>{this.compositionDirty=true;});
  }
  render(scene,materials,all=false){
-  this.setDocument(this.strokes,this.layers);if(!all&&!this.bounds)return;
+  this.setDocument(this.strokes,this.layers);for(const layer of this.layers)if(!isAdjustment(layer)&&shown(layer)&&layer.raster)this.rasterFor(layer.id);if(!all&&!this.bounds)return;
   for(const entry of this.rasters.values()){entry.changed=all||!!entry.surface.bounds;entry.surface.render(scene,materials,all);}
   let output=this.image.data;output.fill(0);this.owner.fill(-1);this.height.fill(0);this.coverage.fill(0);
   for(const layer of this.layers){
@@ -107,8 +125,8 @@ export class LayeredSurface {
     continue;
    }
    const entry=this.rasters.get(layer.id);if(!entry)continue;
-   const filters=JSON.stringify([layer.filters||[],this.layers.filter(item=>isAdjustment(item)&&item.clipToLayerId===layer.id)]);
-   if(entry.changed||entry.filterSignature!==filters){entry.filtered=paintFilters(entry.surface.image.data,this.w,this.h,layer,this.layers,this);entry.filterSignature=filters;}
+   const filters=JSON.stringify([layer.blending,layer.filters||[],this.layers.filter(item=>isAdjustment(item)&&item.clipToLayerId===layer.id)]);
+   if(entry.changed||entry.filterSignature!==filters){entry.filtered=paintFilters(entry.surface.image.data,this.w,this.h,layer,this.layers,{...this,surface:entry.surface});entry.filterSignature=filters;}
    const pixels=entry.filtered||entry.surface.image.data;composite(output,pixels,amountOf(layer),this.owner,entry.surface);
   }
   const surfaces=this.strokes.map(stroke=>this.rasters.get(stroke.layerId||this.layers[0]?.id)?.surface);
@@ -126,14 +144,14 @@ export function renderLayerDocument(canvas,strokes,scene,layers,options={}){
  for(const layer of list){
   if(!shown(layer))continue;
   if(isAdjustment(layer)){if(!layer.clipToLayerId){const filtered=adjusted(image.data,canvas.width,canvas.height,layer,filterView);if(filtered!==image.data)image.data.set(filtered);}continue;}
-  surface.clear();
+  surface.clear();seedRaster(surface,layer,options.frame);
   strokes.forEach((stroke,index)=>{
    if(!stroke.points?.length||(stroke.layerId||list.find(item=>!isAdjustment(item))?.id)!==layer.id)return;
    const target=symmetrySurface(strokeTarget(surface,stroke,index,options.frame),stroke.tool,stroke.points[0]),builder=new StrokeBuilder(target,{...stroke.settings,...scene},index);
    for(const point of stroke.points)builder.add(point,point.finish);
   });
   surface.render(scene,materials);
-  const pixels=paintFilters(surface.image.data,canvas.width,canvas.height,layer,list,filterView);composite(image.data,pixels,amountOf(layer));
+  const pixels=paintFilters(surface.image.data,canvas.width,canvas.height,layer,list,{...filterView,surface});composite(image.data,pixels,amountOf(layer));
  }
  paperBehind(image.data,options.frame?.background);ctx.putImageData(image,0,0);return{canvas,ctx,image};
 }
@@ -151,14 +169,14 @@ function pointsKey(points){
 }
 function sourceKey(strokes,layers,frame,scene){
  const ids=new Set(layers.map(layer=>layer.id));
- return JSON.stringify([frame,layers,scene,strokes.filter(stroke=>ids.has(stroke.layerId)).map(stroke=>[stroke.number,stroke.layerId,stroke.operation,stroke.settings,stroke.tool,pointsKey(stroke.points)])]);
+ return JSON.stringify([frame,layers.map(layerSignature),scene,strokes.filter(stroke=>ids.has(stroke.layerId)).map(stroke=>[stroke.number,stroke.layerId,stroke.operation,stroke.settings,stroke.tool,pointsKey(stroke.points)])]);
 }
 
 // Only the frame being edited owns interactive layer rasters. Other frames are
 // tiny flattened previews, independent of viewport size and never refined.
 export class FrameSurface {
  constructor(canvas,options={}){
-  this.canvas=canvas;this.ctx=canvas.getContext('2d');this.options=options;this.entries=new Map();this.frames=[];this.layers=[];this.strokes=[];this.activeFrameId=null;this.scene=null;this.compositionDirty=true;
+  this.qualityMode=qualityMode(options.quality);this.canvas=canvas;this.ctx=canvas.getContext('2d');this.options=options;this.entries=new Map();this.frames=[];this.layers=[];this.strokes=[];this.activeFrameId=null;this.scene=null;this.compositionDirty=true;
   this.setView(options,canvas.width,canvas.height);
  }
  setView(view={},width=this.canvas.width,height=this.canvas.height){
@@ -168,6 +186,7 @@ export class FrameSurface {
   if(this.w!==width||this.h!==height){this.w=width;this.h=height;this.owner=new Int32Array(width*height);this.height=new Float32Array(width*height);this.coverage=new Float32Array(width*height);this._image=this.ctx.createImageData(width,height);}
   this.owner.fill(-1);this.compositionDirty=true;
  }
+ setQuality(mode){const next=qualityMode(mode);if(next!==this.qualityMode){this.qualityMode=next;this.entries.clear();this.compositionDirty=true;}}
  get image(){if(this.fastComposite&&this.ctx.getImageData)return this.ctx.getImageData(0,0,this.w,this.h);return this._image;}
  get bounds(){return this.compositionDirty||[...this.entries.values()].some(entry=>entry.incremental||entry.needsReplay||entry.inner?.bounds)?[0,0,this.w-1,this.h-1]:null;}
  get qualityInfo(){return[...this.entries.values()].map(entry=>({frameId:entry.frame.id,active:entry.active,width:entry.width,height:entry.height,resolution:entry.resolution,paintLayers:entry.paintCount,renders:entry.renders}));}
@@ -176,15 +195,16 @@ export class FrameSurface {
   this.frames=Array.isArray(frames)&&frames.length?frames:[{id:'frame-1',name:'Frame 1',x:0,y:0,width:960,height:850,background:null}];
   this.activeFrameId=activeFrameId&&this.frames.some(frame=>frame.id===activeFrameId)?activeFrameId:this.frames[0].id;
   const ids=new Set(this.frames.map(frame=>frame.id));for(const id of this.entries.keys())if(!ids.has(id))this.entries.delete(id);
-  const signature=JSON.stringify([this.frames,this.layers,this.activeFrameId]);if(signature!==this.documentSignature)this.compositionDirty=true;this.documentSignature=signature;
+  const signature=JSON.stringify([this.frames,this.layers.map(layerSignature),this.activeFrameId]);if(signature!==this.documentSignature)this.compositionDirty=true;this.documentSignature=signature;
  }
  frameLayers(frame){return this.layers.filter(layer=>!layer.frameId?frame.id===this.frames[0].id:layer.frameId===frame.id);}
  ensureEntry(frame){
   const active=frame.id===this.activeFrameId,layers=this.frameLayers(frame);
   const paintCount=Math.max(1,layers.filter(layer=>!isAdjustment(layer)&&shown(layer)).length);
-  let resolution=active?Math.max(.001,Math.min(this.resolution*.65,Math.sqrt(1_200_000/(frame.width*frame.height*paintCount)))):Math.min(1,96/Math.max(frame.width,frame.height));
+  const quality=QUALITY_PRESETS[this.qualityMode],budget=quality.pixelBudget;
+  let resolution=active?Math.max(.001,Math.min(this.resolution*quality.density,Math.sqrt(budget/(frame.width*frame.height*paintCount)))):Math.min(1,96/Math.max(frame.width,frame.height));
   let width=Math.max(1,Math.ceil(frame.width*resolution)),height=Math.max(1,Math.ceil(frame.height*resolution));
-  while(active&&width*height*paintCount>1_200_000){resolution*=.995;width=Math.max(1,Math.ceil(frame.width*resolution));height=Math.max(1,Math.ceil(frame.height*resolution));}
+  while(active&&width*height*paintCount>budget){resolution*=.995;width=Math.max(1,Math.ceil(frame.width*resolution));height=Math.max(1,Math.ceil(frame.height*resolution));}
   let entry=this.entries.get(frame.id);
   if(!entry||entry.active!==active||entry.width!==width||entry.height!==height||entry.frame.x!==frame.x||entry.frame.y!==frame.y){
    const canvas=presentationCanvas(width,height),view={infinite:true,resolution,originX:frame.x,originY:frame.y,logicalWidth:960,logicalHeight:850,frame:{...frame}};
@@ -254,4 +274,22 @@ export function rebuildLayers(surface,strokes,scene,layers,frames,activeFrameId)
  if(surface instanceof FrameSurface){if(frames)surface.setDocument(strokes,layers,frames,activeFrameId);surface.rebuild(strokes,scene,layers);return;}
  surface.setDocument(strokes,layers);surface.clear();const visible=new Set(surface.layers.filter(layer=>!isAdjustment(layer)&&shown(layer)).map(layer=>layer.id));
  strokes.forEach((stroke,index)=>{if(!stroke.points?.length||!visible.has(stroke.layerId||surface.layers[0].id))return;const builder=new StrokeBuilder(symmetrySurface(surface.strokeSurface(stroke,index),stroke.tool,stroke.points[0]),{...stroke.settings,...scene},index);for(const point of stroke.points)builder.add(point,point.finish);});
+}
+
+// Render selected layer content independently of artboard background. Selected
+// adjustments evaluate only the chosen stack; callers keep merges contiguous.
+export function renderLayerPreview(state,layerIds,{width,height,includeBackground=false,includeClipped=true}={}){
+ const ids=new Set(layerIds),first=state.layers.find(layer=>ids.has(layer.id)),frame=state.frames.find(frame=>frame.id===(first?.frameId||state.activeFrameId))||state.frames[0];
+ width??=frame.width;height??=frame.height;
+ if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||width>4096||height>4096)throw Error('The raster size is invalid.');
+ const layers=state.layers.filter(layer=>layer.frameId===frame.id&&(ids.has(layer.id)||(includeClipped&&ids.has(layer.clipToLayerId)))),canvas=presentationCanvas(width,height);
+ return renderLayerDocument(canvas,state.strokes,state.scene,layers,{infinite:true,resolution:width/frame.width,originX:frame.x,originY:frame.y,logicalWidth:960,logicalHeight:850,frame:{...frame,background:includeBackground?frame.background:null}});
+}
+export function renderLayerThumbnail(state,layer,canvas){
+ const frame=state.frames.find(frame=>frame.id===layer.frameId)||state.frames[0],q=Math.min(canvas.width/frame.width,canvas.height/frame.height),width=Math.max(1,Math.round(frame.width*q)),height=Math.max(1,Math.round(frame.height*q));
+ const shownState={...state,layers:state.layers.map(item=>item.id===layer.id?{...item,visible:true,opacity:1}:item)},ids=layer.kind==='adjustment'?state.layers.filter(item=>item.frameId===layer.frameId&&state.layers.indexOf(item)<=state.layers.indexOf(layer)).map(item=>item.id):[layer.id];
+ const rendered=renderLayerPreview(shownState,ids,{width,height}),ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+ if(typeof ctx.drawImage==='function')ctx.drawImage(rendered.canvas,Math.floor((canvas.width-width)/2),Math.floor((canvas.height-height)/2));
+ else ctx.putImageData(rendered.image,Math.floor((canvas.width-width)/2),Math.floor((canvas.height-height)/2));
+ return canvas;
 }

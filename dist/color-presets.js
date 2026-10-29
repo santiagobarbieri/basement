@@ -7,6 +7,7 @@ export const COLOR_PRESETS = {
 
 const material = (name, primary, shadow, contrast) => ({ name, colors: { primary, shadow, contrast } });
 export const BRUSH_PRESETS = {
+  basic: Object.fromEntries([['black','Black','#222222'],['white','White','#ffffff'],['red','Red','#df3b42'],['orange','Orange','#ed813d'],['yellow','Yellow','#ebc83e'],['green','Green','#439a62'],['blue','Blue','#3265da'],['violet','Violet','#8754bc']].map(([id,name,primary])=>[id,material(name,primary,primary,primary)])),
   cromo: COLOR_PRESETS,
   relief: {
     clay: material('Clay', '#ae6549', '#46271f', '#eac2a0'),

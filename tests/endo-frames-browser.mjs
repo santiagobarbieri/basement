@@ -29,15 +29,18 @@ try{
  const target=(await browser.send('Target.createTarget',{url:origin+'/hub/'})).targetId;
  page=new CDP((await(await fetch(debug+'/json')).json()).find(t=>t.id===target).webSocketDebuggerUrl);
  await page.send('Page.enable');await page.send('Page.bringToFront');
- const nativeDialogs=[];
- page.onEvent=message=>{if(message.method==='Page.javascriptDialogOpening'){nativeDialogs.push(message.params.type);page.send('Page.handleJavaScriptDialog',{accept:false}).catch(()=>{});}};
+ const nativeDialogs=[],runtimeErrors=[];await page.send('Runtime.enable');
+ page.onEvent=message=>{if(message.method==='Runtime.exceptionThrown')runtimeErrors.push(message.params.exceptionDetails.exception?.description||message.params.exceptionDetails.text);if(message.method==='Page.javascriptDialogOpening'){nativeDialogs.push(message.params.type);page.send('Page.handleJavaScriptDialog',{accept:false}).catch(()=>{});}};
  await page.send('Emulation.setDeviceMetricsOverride',{width:1512,height:982,deviceScaleFactor:1,mobile:false});
  const run=async expression=>{const r=await page.send('Runtime.evaluate',{expression:`(async()=>(${expression}))()`,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
- const wait=async expression=>{for(let i=0;i<300;i++){try{if(await run(expression))return;}catch{}await delay(100);}throw Error('Timed out: '+expression+'; '+await run("JSON.stringify({url:location.href,status:document.querySelector('#local-status')?.textContent,feedback:document.querySelector('#export-feedback')?.textContent,dialogs:[...document.querySelectorAll('dialog[open]')].map(d=>d.textContent.slice(0,150))})"));};
- const click=async selector=>{const p=await run(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);await pointer('mousePressed',p,1);await pointer('mouseReleased',p,0);};
- const pointer=(type,point,buttons)=>page.send('Input.dispatchMouseEvent',{type,...point,button:'left',buttons,clickCount:1});
- const key=async key=>{const codes={Escape:27,Enter:13,Tab:9,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Home:36,End:35};const code=key===' '?'Space':key;await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key,code,windowsVirtualKeyCode:codes[key]||0});await page.send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:codes[key]||0});};
- const inspect=async name=>{await click(`[data-inspector-tab=${name}]`);await wait(`document.querySelector('[data-inspector-tab=${name}]').getAttribute('aria-selected')==='true'&&!document.querySelector('[data-inspector-panel=${name}]').hidden`);};
+ const wait=async expression=>{for(let i=0;i<300;i++){try{if(await run(expression))return;}catch{}await delay(100);}throw Error('Timed out: '+expression+'; errors: '+runtimeErrors.join(' | ')+'; '+await run("JSON.stringify({url:location.href,status:document.querySelector('#local-status')?.textContent,feedback:document.querySelector('#export-feedback')?.textContent,dialogs:[...document.querySelectorAll('dialog[open]')].map(d=>d.textContent.slice(0,150))})"));};
+ const click=async selector=>{const parent=await run(`(()=>{const element=document.querySelector(${JSON.stringify(selector)});if(!element)throw Error('Missing '+${JSON.stringify(selector)});const menus=[];for(let p=element.parentElement;p;p=p.parentElement)if(p.getAttribute('role')==='menu'&&p.hidden&&p.id)menus.unshift(p.id);return menus.map(id=>document.querySelector('[aria-controls="'+id+'"]')?.id).find(Boolean)||null;})()`);if(parent)await click('#'+parent);const p=await run(`(()=>{const element=document.querySelector(${JSON.stringify(selector)});element.scrollIntoView({block:'nearest',inline:'nearest'});const r=element.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);await pointer('mousePressed',p,1);await pointer('mouseReleased',p,0);};
+ const pointer=(type,point,buttons,modifiers=0)=>page.send('Input.dispatchMouseEvent',{type,...point,button:'left',buttons,clickCount:1,modifiers});
+ const key=async (key,modifiers=0)=>{const codes={Escape:27,Enter:13,Tab:9,ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Home:36,End:35};const code=key===' '?'Space':key;await page.send('Input.dispatchKeyEvent',{type:'rawKeyDown',key,code,windowsVirtualKeyCode:codes[key]||0,modifiers});await page.send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:codes[key]||0,modifiers});};
+ const closePopovers=async()=>{for(const [id,close]of [['color-popover','color-popover-cancel'],['brush-popover','brush-popover-close'],['filter-properties','filter-properties-close'],['artboard-panel','artboard-panel-close'],['layer-properties-panel','layer-properties-close']])if(await run(`!!document.querySelector('#${id}')&&!document.querySelector('#${id}').hidden`))await click('#'+close);};
+ const inspect=async name=>{await closePopovers();if(name==='color'){await run("window.basementOpenColor('primary')");await wait("!document.querySelector('#color-popover').hidden");return;}if(name==='brush'){await run('window.basementOpenBrush()');await wait("!document.querySelector('#brush-popover').hidden");return;}if(name==='areas'){await run('window.basementOpenArtboards()');await wait("!document.querySelector('#artboard-panel').hidden");return;}if(name==='filters'||name==='adjustment'){await click('.layer-row.active [data-filter-open]');await wait("!document.querySelector('#filter-properties').hidden");return;}throw Error('Unknown panel '+name);};
+ const openBrush=async()=>inspect('brush');
+ const addAdjustment=async type=>{await closePopovers();await click('#add-adjustment');await wait("!document.querySelector('#adjustment-menu').hidden");await click(`#adjustment-menu [data-adjustment=${type}]`);await wait("!document.querySelector('#filter-properties').hidden");};
  const capture=async name=>{await run('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');await delay(500);const {data}=await page.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile('/private/tmp/basement-endo-frames-'+name+'.png',Buffer.from(data,'base64'));};
  await wait('window.basementSessionReady');
  await run(`(async()=>{localStorage.setItem('basement-theme','dark');const store=await import('/project-store.js');const root=await(await navigator.storage.getDirectory()).getDirectoryHandle('Endo Frames Test',{create:true});await store.connectProjectFolder(root);const state=await(await import('/hub/studios.js')).createInitial('endo');const legacy={format:'basement.ment',version:1,savedAt:new Date().toISOString(),artboard:{id:'endo-frames-test',name:'Frame studies',studio:'endo',width:960,height:850,layers:[{id:'cromo-1',type:'endo.cromo',strokes:[]}],settings:{infinite:true,scene:state.scene,defaults:state.defaults,tool:state.tool,nextNumber:1,frames:[]}}};const file=await root.getFileHandle('Frame studies--endo-frames-test.ment',{create:true}),writer=await file.createWritable();await writer.write(JSON.stringify(legacy));await writer.close();})()`);
@@ -50,9 +53,9 @@ try{
  const field=async(selector,value,event='input')=>{await run(`(()=>{const field=document.querySelector(${JSON.stringify(selector)});field.focus();field.value=${JSON.stringify(String(value))};field.dispatchEvent(new Event(${JSON.stringify(event)},{bubbles:true}));${event==='input'?"field.dispatchEvent(new Event('change',{bubbles:true}));":''}field.blur();})()`);await settle();};
  const drag=async(a,b,steps=12)=>{await pointer('mousePressed',a,1);for(let i=1;i<=steps;i++){await pointer('mouseMoved',{x:a.x+(b.x-a.x)*i/steps,y:a.y+(b.y-a.y)*i/steps},1);await delay(8);}await pointer('mouseReleased',b,0);await settle();};
  const world=async(x,y)=>run(`(()=>{const r=document.querySelector('#canvas-viewport').getBoundingClientRect(),v=window.basementStudioSession.capture().state.view;return{x:r.x+v.x+${x}*v.scale,y:r.y+v.y+${y}*v.scale};})()`);
- const draw=async(a,b)=>{await click('[data-mode=draw]');await drag(await world(a.x,a.y),await world(b.x,b.y));};
+ const draw=async(a,b)=>{await click('.cursor-modes button[data-mode=draw]');await drag(await world(a.x,a.y),await world(b.x,b.y));};
  const pixel=async(x,y)=>{const p=await world(x,y);return run(`(()=>{const canvas=document.querySelector('#artboard'),r=canvas.getBoundingClientRect();return[...canvas.getContext('2d').getImageData(Math.max(0,Math.min(canvas.width-1,Math.round((${p.x}-r.x)*canvas.width/r.width))),Math.max(0,Math.min(canvas.height-1,Math.round((${p.y}-r.y)*canvas.height/r.height))),1,1).data];})()`);};
- const palette=async hex=>{await inspect('color');for(const role of ['primary','contrast','shadow']){await click(`[data-color=${role}]`);await field('#color-hex',hex);}await click('[data-mode=draw]');await key('Escape');};
+ const palette=async hex=>{await inspect('color');await field('#color-hex',hex);await click('#color-popover-ok');await click('.cursor-modes button[data-mode=draw]');await key('Escape');};
  const frameUi=async()=>inspect('areas');
  const currentFrame=async()=>{const s=await state();return s.frames.find(frame=>frame.id===s.activeFrameId);};
  const selectFrame=async id=>{await frameUi();await field('#active-frame-select',id,'change');await wait(`window.basementStudioSession.capture().state.activeFrameId===${JSON.stringify(id)}`);await click('#zoom-fit');await settle();};
@@ -64,8 +67,7 @@ try{
  await field('#frame-width',640,'change');await field('#frame-height',480,'change');await field('#frame-x',100,'change');await field('#frame-y',100,'change');await field('#frame-name','Frame one','change');
  await click('#zoom-fit');await settle();
  let frame=await currentFrame();assert.equal(frame.width,640);assert.equal(frame.height,480);assert.equal(frame.name,'Frame one');
- await inspect('brush');await run("document.querySelector('.scene-card').open=true");
- await field('#scene-controls [data-control=grain] input[type=number]',0);
+ await inspect('brush');
  await field('#controls [data-control=width] input[type=number]',40);
  await field('#controls [data-control=variation] input[type=number]',0);
  await field('#controls [data-control=speed] input[type=number]',0);
@@ -76,11 +78,11 @@ try{
  assert.equal((await state()).strokes.length,beforeOutside,'A gesture starting outside every frame creates no paint');
  await draw(a,b);const redStroke=(await state()).strokes.at(-1),redLayer=redStroke.layerId;
  rgbNear(await pixel(center.x,center.y),[220,30,60],'The active frame displays its red stroke');
- await draw({x:frame.x+580,y:frame.y+300},{x:frame.x+710,y:frame.y+300});
+ await draw({x:frame.x+580,y:frame.y+300},{x:frame.x+710,y:frame.y+300});assert.equal((await state()).strokes.at(-1).layerId,redLayer,'Painting reuses the active layer across gestures');
  assert.ok((await pixel(frame.x+625,frame.y+300))[3]>200,'Crossing stroke paints inside the frame');
  assert.equal((await pixel(frame.x+645,frame.y+300))[3],0,'Crossing stroke is clipped at the fixed frame boundary');
- await palette('#2266dd');await draw(a,b);const blueStroke=(await state()).strokes.at(-1),blueLayer=blueStroke.layerId;
- assert.notEqual(blueLayer,redLayer,'New strokes can be interleaved with adjustment layers');
+ await click('#layer-add');await wait("!document.querySelector('#layer-properties-panel').hidden");await click('#new-layer-create');await palette('#2266dd');await draw(a,b);const blueStroke=(await state()).strokes.at(-1),blueLayer=blueStroke.layerId;
+ assert.notEqual(blueLayer,redLayer,'A manually created layer lets adjustments be interleaved between paint layers');
  rgbNear(await pixel(center.x,center.y),[34,102,221],'The new blue stroke covers the red stroke');
  console.log('PASS real drawing is confined to finite frames, including gestures crossing a frame edge');
 
@@ -105,35 +107,35 @@ try{
  assert.ok(area(entry(switched,first))>area(entry(switched,second)));assert.ok(longSide(entry(switched,second))<=160);
  console.log('PASS frames own their layers; switching active frames lowers the previous frame to a small thumbnail');
 
- await inspect('filters');await field('#filter-type','invert','change');await click('#add-filter');await settle();
+ await addAdjustment('invert');await settle();
  let adjustment=(await state()).layers.find(layer=>layer.kind==='adjustment'&&layer.filter.type==='invert');assert.ok(adjustment);assert.equal(adjustment.frameId,first);
- await wait("!document.querySelector('[data-filter-popup]').hidden");assert.equal(await run("document.querySelector('[data-filter-popup]').getAttribute('aria-modal')"),'false');
- assert.match(await run("document.querySelector('#filter-popup-title').textContent"),/Invert/);
+ await wait("!document.querySelector('#filter-properties').hidden");assert.equal(await run("document.querySelector('#panel-settings')===null"),true,'Each adjustment opens its own properties without a Settings panel');
+ assert.match(await run("document.querySelector('#filter-properties-title').textContent"),/Invert/);
  rgbNear(await pixel(center.x,center.y),[221,153,34],'Adjustment layers filter all content below them in their frame');
- await key('Escape');assert.equal(await run("document.querySelector('[data-filter-popup]').hidden"),true);
+ await key('Escape');assert.equal(await run("document.querySelector('#filter-properties').hidden"),true,'Escape closes the individual adjustment window');
  await click('#layer-down');await settle();
  const local=(await state()).layers.filter(layer=>layer.frameId===first);assert.ok(local.findIndex(layer=>layer.id===adjustment.id)<local.findIndex(layer=>layer.id===blueLayer));
  rgbNear(await pixel(center.x,center.y),[34,102,221],'Moving an adjustment below the blue stroke leaves that stroke unfiltered');
  await selectFrame(second);rgbNear(await pixel(greenCenter.x,greenCenter.y),[34,153,102],'An adjustment never leaks into another frame');
  await selectFrame(first);
- // Exercise the same drag/drop events the layer list receives from the browser.
- await run(`(()=>{const source=document.querySelector('[data-layer-id="${adjustment.id}"]'),target=document.querySelector('[data-layer-id="${blueLayer}"]'),data=new DataTransfer(),r=target.getBoundingClientRect();source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:data}));target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:data,clientY:r.top+2}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:data,clientY:r.top+2}));})()`);await settle();
+ // Exercise the same drag/drop events the visible layer list receives from the browser.
+ await closePopovers();await run(`(()=>{const source=document.querySelector('[data-layer-id="${adjustment.id}"]'),target=document.querySelector('[data-layer-id="${blueLayer}"]'),data=new DataTransfer(),r=target.getBoundingClientRect();source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:data}));target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:data,clientY:r.top+2}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:data,clientY:r.top+2}));})()`);await settle();
  rgbNear(await pixel(center.x,center.y),[221,153,34],'Dragging an adjustment back above a stroke changes its pixels');
- await click(`[data-layer-id="${adjustment.id}"] .layer-effect`);await wait("!document.querySelector('[data-filter-popup]').hidden");
+ await click(`[data-layer-id="${adjustment.id}"] [data-filter-open]`);await wait("!document.querySelector('#filter-properties').hidden");
  await click('[data-filter-preview]');await settle();rgbNear(await pixel(center.x,center.y),[34,102,221],'Preview toggle disables the adjustment non-destructively');
  await key('Escape');
- await inspect('filters');await field('#filter-type','threshold','change');await click('#add-filter');await wait("!document.querySelector('[data-filter-popup]').hidden");
+ await addAdjustment('threshold');
  const threshold=(await state()).layers.filter(layer=>layer.kind==='adjustment'&&layer.filter.type==='threshold').at(-1);
- await field('[data-filter-popup] [data-filter-parameter=amount]',255);rgbNear(await pixel(center.x,center.y),[0,0,0],'Threshold popup updates the frame live');
- await field('[data-filter-popup] [data-filter-value=amount]',0);rgbNear(await pixel(center.x,center.y),[255,255,255],'Numeric Threshold control uses the same live effect');
+ await field('#filter-list [data-filter-parameter=amount]',255);rgbNear(await pixel(center.x,center.y),[0,0,0],'Threshold properties update the frame live');
+ await field('#filter-list [data-filter-value=amount]',0);rgbNear(await pixel(center.x,center.y),[255,255,255],'Numeric Threshold control uses the same live effect');
  await click('[data-filter-preview]');await settle();
- await click('.studio-brand');assert.equal(await run("document.querySelector('[data-filter-popup]').hidden"),true,'An outside click closes properties without a modal gate');
- await inspect('filters');await field('#filter-type','dither','change');await click('#add-filter');await wait("!document.querySelector('[data-filter-popup]').hidden");
- await field('[data-filter-popup] [data-filter-parameter=scale]',3);
+ await click('#project-title');assert.equal(await run("document.querySelector('#filter-properties').hidden"),true,'An outside click closes the adjustment window without removing its effect');
+ await addAdjustment('dither');
+ await field('#filter-list [data-filter-parameter=scale]',3);
  const patch=await run(`(()=>{const v=window.basementStudioSession.capture().state.view,r=document.querySelector('#canvas-viewport').getBoundingClientRect(),canvas=document.querySelector('#artboard'),c=canvas.getContext('2d'),x=Math.round(v.x+${center.x}*v.scale),y=Math.round(v.y+${center.y}*v.scale),pixels=c.getImageData(x-15,y-10,30,20).data;let min=255,max=0;for(let i=0;i<pixels.length;i+=4){if(pixels[i+3]>200){min=Math.min(min,pixels[i]);max=Math.max(max,pixels[i]);}}return{min,max};})()`);
  assert.ok(patch.min<80&&patch.max>175,'Dither properties produce a visible tonal pattern');
- await capture('adjustment-popup');await key('Escape');
- console.log('PASS adjustment layers reorder among paint, affect only lower content in their frame, and open live nonmodal properties');
+ await capture('adjustment-window');await key('Escape');
+ console.log('PASS adjustment layers reorder among paint, affect only lower content in their frame, and expose individual adjustment properties windows');
 
  await frameUi();let beforeMove=await state();frame=beforeMove.frames.find(item=>item.id===first);
  await field('#frame-x',frame.x+35,'change');await field('#frame-y',frame.y+25,'change');let afterMove=await state();
@@ -149,11 +151,47 @@ try{
  await capture('frames');
  console.log('PASS frame moves carry their own content, frame resizes crop without scaling, and fixed limits do not depend on the page');
 
+ // Direct artboard manipulation belongs to Select, without entering F. Titles
+ // and all eight handles remain usable at any zoom, outside the drawing area.
+ await selectFrame(first);await click('.cursor-modes button[data-mode=select]');
+ await click(`[data-frame-title="${first}"]`);await settle();
+ assert.equal(await run("document.querySelector('#canvas-viewport').dataset.frameSelection"),first);
+ assert.equal(await run("[...document.querySelectorAll('[data-frame-handle]')].filter(node=>node.getBoundingClientRect().width>0).length"),8,'Select exposes corner and edge handles');await capture('transform-handles');
+ let directBefore=await state(),directFrame=directBefore.frames.find(item=>item.id===first),scale=directBefore.view.scale;
+ let titlePoint=await run(`(()=>{const r=document.querySelector('[data-frame-title="${first}"]').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+ let destination={x:titlePoint.x+40*scale,y:titlePoint.y+25*scale};
+ await pointer('mousePressed',titlePoint,1);await pointer('mouseMoved',destination,1);await settle();
+ let previewFrame=await currentFrame();assert.equal(previewFrame.x,directFrame.x+40);assert.equal(previewFrame.y,directFrame.y+25,'Artboard contents and geometry preview before pointer release');
+ let previewState=await state();
+ const movedIds=new Set(directBefore.layers.filter(layer=>layer.frameId===first).map(layer=>layer.id));
+ for(const stroke of directBefore.strokes){const actual=previewState.strokes.find(item=>item.number===stroke.number);if(movedIds.has(stroke.layerId)){assert.ok(Math.abs(actual.points[0].x-stroke.points[0].x-40)<.001);assert.ok(Math.abs(actual.points[0].y-stroke.points[0].y-25)<.001);}else assert.deepEqual(actual.points,stroke.points);}
+ await pointer('mouseReleased',destination,0);await settle();assert.equal(await run("document.querySelector('#canvas-viewport').dataset.mode"),'select','Moving keeps Select active');
+ await click('#return');await settle();assert.deepEqual((await state()).frames,directBefore.frames);assert.deepEqual((await state()).strokes,directBefore.strokes,'One Undo restores a whole drag');
+ await click(`[data-frame-title="${first}"]`);directBefore=await state();directFrame=await currentFrame();scale=directBefore.view.scale;
+ const handlePoint=async handle=>run(`(()=>{const r=document.querySelector('[data-frame-handle="${handle}"]').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);
+ let start=await handlePoint('e');destination={x:start.x+37*scale,y:start.y};
+ await pointer('mousePressed',start,1);await pointer('mouseMoved',destination,1);await settle();assert.equal((await currentFrame()).width,directFrame.width+37,'An edge handle resizes live');
+ await pointer('mouseReleased',destination,0);await settle();assert.equal((await currentFrame()).height,directFrame.height);assert.deepEqual((await state()).strokes,directBefore.strokes,'Canvas Size crops rather than scaling source points');
+ await click('#return');await settle();assert.deepEqual((await state()).frames,directBefore.frames);
+ await click(`[data-frame-title="${first}"]`);start=await handlePoint('se');destination={x:start.x+80*scale,y:start.y+20*scale};
+ await pointer('mousePressed',start,1,8);await pointer('mouseMoved',destination,1,8);await settle();await pointer('mouseReleased',destination,0,8);await settle();
+ const proportional=await currentFrame();assert.ok(Math.abs(proportional.width/proportional.height-directFrame.width/directFrame.height)<.01,'Shift preserves aspect ratio');
+ await click('#return');await settle();await click(`[data-frame-title="${first}"]`);
+ start=await handlePoint('e');destination={x:start.x+20*scale,y:start.y};await pointer('mousePressed',start,1,1);await pointer('mouseMoved',destination,1,1);await pointer('mouseReleased',destination,0,1);await settle();
+ const centered=await currentFrame();assert.equal(centered.width,directFrame.width+40);assert.equal(centered.x+centered.width/2,directFrame.x+directFrame.width/2,'Alt resizes around the center');
+ await click('#return');await settle();await click(`[data-frame-title="${first}"]`);
+ start=await handlePoint('s');destination={x:start.x,y:start.y+55*scale};await pointer('mousePressed',start,1);await pointer('mouseMoved',destination,1);await settle();await key('Escape');await pointer('mouseReleased',destination,0);await settle();
+ assert.deepEqual((await state()).frames,directBefore.frames);assert.deepEqual((await state()).strokes,directBefore.strokes,'Escape restores an in-progress transform');
+ await run("document.querySelector('#artboard').focus()");await key('ArrowRight');await key('ArrowDown');await settle();assert.equal((await currentFrame()).x,directFrame.x+1);assert.equal((await currentFrame()).y,directFrame.y+1,'Arrow keys nudge the selected artboard');
+ await key('ArrowRight',8);await settle();assert.equal((await currentFrame()).x,directFrame.x+11,'Shift arrows move the artboard ten pixels');
+ await click('#return');await click('#return');await click('#return');await settle();
+ console.log('PASS Select directly moves artboards and contents live; eight handles, Shift/Alt resize, Escape cancellation and one-gesture Undo');
+
  // When frames overlap, the frame visually on top owns the pointer even if
  // another frame was active before the click.
  const stableFirst=await currentFrame(),stableSecond=(await state()).frames.find(item=>item.id===second);
  await selectFrame(second);await field('#frame-x',stableFirst.x+80,'change');await field('#frame-y',stableFirst.y+80,'change');
- await selectFrame(first);await click('[data-mode=select]');
+ await selectFrame(first);await click('.cursor-modes button[data-mode=select]');
  const overlapPoint=await world(stableFirst.x+220,stableFirst.y+220);
  await pointer('mousePressed',overlapPoint,1);await pointer('mouseReleased',overlapPoint,0);await settle();
  assert.equal((await state()).activeFrameId,second,'The topmost overlapping frame receives the click');
@@ -173,7 +211,7 @@ try{
  // A frame can also be created with the quick tool, then removed with Undo support.
  const countBefore=(await state()).frames.length;
  await click('#draw-frame');const anchor=await currentFrame();
- await drag(await world(anchor.x-150,anchor.y+50),await world(anchor.x-70,anchor.y+130));
+ await drag(await world(anchor.x+50,anchor.y+anchor.height+50),await world(anchor.x+130,anchor.y+anchor.height+130));
  assert.equal((await state()).frames.length,countBefore+1,'The frame tool creates an independent finite frame');
  const drawn=await currentFrame();assert.ok(drawn.width>=64&&drawn.height>=64&&drawn.width<=2048&&drawn.height<=2048);
  await frameUi();await click('#frame-delete');await settle();assert.equal((await state()).frames.length,countBefore);

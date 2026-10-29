@@ -8,9 +8,9 @@ const editHelp = document.querySelector('#color-edit-help');
 const activeName = document.querySelector('#color-active-name');
 const activeSwatch = document.querySelector('#color-active-swatch');
 const roleLabels = {
-  primary: { name: 'Base color', help: 'The main color of your material. Light and shadow give it depth.', editing: 'Editing the base color. Use HEX or RGB for an exact color.' },
-  contrast: { name: 'Light', help: 'The bright faces of the material. A lighter tone makes its highlights more visible.', editing: 'Editing the light color, which appears on the bright faces.' },
-  shadow: { name: 'Shadow', help: 'The dark faces of the material. A darker tone makes its depth more visible.', editing: 'Editing the shadow color, which appears on the dark faces.' },
+  primary: { name: 'Paint color', help: 'The foreground color used by your brush.', editing: 'Editing the paint color. Use HEX or RGB for an exact color.' },
+  contrast: { name: 'Material highlight', help: 'The highlight color of a legacy material stroke.', editing: 'Editing the material highlight.' },
+  shadow: { name: 'Material shadow', help: 'The shadow color of a legacy material stroke.', editing: 'Editing the material shadow.' },
 };
 let presetButtons = [], presetBrush = null;
 const presetPanel = document.querySelector('#color-presets');
@@ -23,13 +23,14 @@ function syncPresets() {
     button.type = 'button'; button.dataset.preset = id; button.title = 'Apply ' + preset.name;
     button.setAttribute('aria-label', button.title);
     button.innerHTML = '<span class="preset-swatch" aria-hidden="true"></span>';
-    button.querySelector('.preset-swatch').style.background = `linear-gradient(135deg, ${preset.colors.shadow}, ${preset.colors.primary} 35%, ${preset.colors.contrast} 55%, ${preset.colors.primary} 75%, ${preset.colors.shadow})`;
+    button.querySelector('.preset-swatch').style.background = brush==='basic'?preset.colors.primary:`linear-gradient(135deg, ${preset.colors.shadow}, ${preset.colors.primary} 35%, ${preset.colors.contrast} 55%, ${preset.colors.primary} 75%, ${preset.colors.shadow})`;
     button.addEventListener('click', () => document.dispatchEvent(new CustomEvent('endo-color-preset', { detail: id })));
     const label=document.createElement('span');label.className='preset-name';label.textContent=preset.name;button.append(label);
     presetPanel.append(button); presetButtons.push(button);
   }
 }
 const channels = ['r','g','b'].map(key => document.querySelector('#color-' + key));
+const hsbChannels = ['h','s','v'].map(key=>document.querySelector('#color-'+key));
 let role = 'primary', hsv = { h: 210, s: 0, v: 1 }, pointer = null;
 const source = () => document.querySelector('#' + role);
 function explainRole() {
@@ -48,6 +49,7 @@ function view() {
   square.setAttribute('aria-valuenow', Math.round(hsv.s * 100));
   square.setAttribute('aria-valuetext', `Saturation ${Math.round(hsv.s*100)}%, brightness ${Math.round(hsv.v*100)}%`);
   const rgb = hexToRgb(source().value);
+  hsbChannels.forEach((input,i)=>{if(!input)return;if(document.activeElement!==input)input.value=Math.round([hsv.h,hsv.s*100,hsv.v*100][i]);input.disabled=source().disabled;});
   channels.forEach((input, i) => { if (document.activeElement !== input) input.value = rgb[i]; input.disabled = source().disabled; });
   if (hexField) {
     hexField.disabled = source().disabled;
@@ -152,3 +154,8 @@ if (hexField) {
 }
 document.addEventListener('endo-settings',refresh);
 refresh();
+
+hsbChannels.forEach((input,i)=>{if(!input)return;
+ input.addEventListener('input',()=>{if(!Number.isFinite(input.valueAsNumber))return;const key=['h','s','v'][i];hsv[key]=Math.max(0,Math.min(i===0?360:100,input.valueAsNumber))/(i===0?1:100);apply();});
+ input.addEventListener('change',finish);input.addEventListener('blur',()=>{finish();view();});
+});
